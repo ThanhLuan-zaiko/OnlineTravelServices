@@ -1,6 +1,14 @@
 "use client";
 
+import Link from "next/link";
+import { usePathname, useRouter } from "next/navigation";
+import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { FiBell, FiMenu, FiSearch, FiSidebar, FiUser, FiX } from "react-icons/fi";
+
+import { logoutCustomerAccount } from "@/lib/client/api-client";
+import { SelectField } from "@/components/ui/select-field";
+import { useToast } from "@/components/ui/toast";
+import { authSessionQueryKey, useAuthSession } from "@/hooks/use-auth-session";
 
 import { ThemeToggle } from "./theme-controller";
 import type { SidebarPreference } from "./customer-portal-shell";
@@ -47,6 +55,44 @@ export function CustomerHeader({
   onToggleRightSidebar,
   rightSidebar,
 }: CustomerHeaderProps) {
+  const pathname = usePathname();
+  const router = useRouter();
+  const queryClient = useQueryClient();
+  const { showToast } = useToast();
+  const { data: authSession } = useAuthSession();
+  const user = authSession?.user ?? null;
+  const accountHref = `/login?next=${encodeURIComponent(pathname)}`;
+  const logoutMutation = useMutation({
+    mutationFn: logoutCustomerAccount,
+    onSuccess: () => {
+      queryClient.setQueryData(authSessionQueryKey, { user: null });
+      showToast({
+        message: "Phiên đăng nhập đã được kết thúc.",
+        title: "Đã đăng xuất",
+        variant: "success",
+      });
+      router.replace("/login");
+      router.refresh();
+    },
+    onError: () => {
+      showToast({
+        message: "Không thể đăng xuất lúc này.",
+        title: "Đăng xuất chưa thành công",
+        variant: "error",
+      });
+    },
+  });
+
+  const handleAccountAction = (value: string) => {
+    if (value === "account") {
+      router.push(`/account?next=${encodeURIComponent(pathname)}`);
+      return;
+    }
+
+    if (value === "logout" && !logoutMutation.isPending) {
+      logoutMutation.mutate();
+    }
+  };
 
   return (
     <header className="sticky top-0 z-40 border-b border-slate-200 bg-white dark:border-neutral-900 dark:bg-black">
@@ -89,13 +135,38 @@ export function CustomerHeader({
             <span className="absolute right-2.5 top-2.5 h-2 w-2 rounded-full bg-rose-500 ring-2 ring-white dark:ring-neutral-900" />
           </button>
 
-          <button
-            aria-label="Tài khoản"
-            className="flex h-11 w-11 items-center justify-center rounded-xl border border-slate-200 bg-white text-slate-700 transition hover:border-emerald-200 hover:bg-emerald-50 hover:text-emerald-700 dark:border-neutral-800 dark:bg-black dark:text-neutral-200 dark:hover:border-emerald-950 dark:hover:bg-neutral-950 dark:hover:text-emerald-300"
-            type="button"
-          >
-            <FiUser size={19} />
-          </button>
+          {user ? (
+            <SelectField
+              buttonClassName="h-11 rounded-xl px-2 sm:px-3 hover:border-emerald-200 hover:bg-emerald-50 dark:hover:border-emerald-950 dark:hover:bg-neutral-950"
+              className="w-14 sm:w-52"
+              hidePlaceholderOption
+              label="Tài khoản"
+              labelClassName="sr-only"
+              name="account-actions"
+              onValueChange={handleAccountAction}
+              options={[
+                { label: "Cập nhật tài khoản", value: "account" },
+                { label: logoutMutation.isPending ? "Đang đăng xuất" : "Đăng xuất", value: "logout" },
+              ]}
+              popoverClassName="right-0 w-56"
+              placeholder="Tài khoản"
+              renderValue={() => (
+                <span className="flex items-center justify-center gap-2 text-slate-700 dark:text-neutral-200">
+                  <FiUser size={19} />
+                  <span className="hidden max-w-32 truncate sm:block">{user.fullName}</span>
+                </span>
+              )}
+              value=""
+            />
+          ) : (
+            <Link
+              aria-label="Tài khoản"
+              className="flex h-11 w-11 items-center justify-center rounded-xl border border-slate-200 bg-white text-slate-700 transition hover:border-emerald-200 hover:bg-emerald-50 hover:text-emerald-700 dark:border-neutral-800 dark:bg-black dark:text-neutral-200 dark:hover:border-emerald-950 dark:hover:bg-neutral-950 dark:hover:text-emerald-300"
+              href={accountHref}
+            >
+              <FiUser size={19} />
+            </Link>
+          )}
 
           <button
             aria-label={getSidebarLabel(

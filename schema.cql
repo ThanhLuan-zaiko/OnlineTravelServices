@@ -45,6 +45,17 @@ CREATE TABLE IF NOT EXISTS users_by_email (
   PRIMARY KEY ((email))
 );
 
+CREATE TABLE IF NOT EXISTS users_by_phone (
+  phone text,
+  user_id uuid,
+  email text,
+  full_name text,
+  role text,
+  status text,
+  created_at timestamp,
+  PRIMARY KEY ((phone))
+);
+
 CREATE TABLE IF NOT EXISTS users_by_role (
   role text,
   status text,

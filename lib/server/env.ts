@@ -9,6 +9,7 @@ const envSchema = z.object({
   SCYLLA_KEYSPACE: z.string().min(1),
   SCYLLA_USERNAME: z.string().min(1).optional(),
   SCYLLA_PASSWORD: z.string().min(1).optional(),
+  AUTH_SECRET: z.string().min(32),
 });
 
 export const serverEnv = envSchema.parse({
@@ -18,4 +19,5 @@ export const serverEnv = envSchema.parse({
   SCYLLA_KEYSPACE: process.env.SCYLLA_KEYSPACE,
   SCYLLA_USERNAME: process.env.SCYLLA_USERNAME,
   SCYLLA_PASSWORD: process.env.SCYLLA_PASSWORD,
+  AUTH_SECRET: process.env.AUTH_SECRET,
 });
