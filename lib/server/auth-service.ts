@@ -7,6 +7,7 @@ import { uuidv7 } from "uuidv7";
 
 import { writeSecurityEvent } from "@/lib/server/auth-audit";
 import {
+  ADMINISTRATIVE_STAFF_ROLE,
   ACTIVE_STATUS,
   CUSTOMER_ROLE,
   DEFAULT_CUSTOMER_TIER,
@@ -231,6 +232,26 @@ export async function registerCustomer(input: RegisterRequest, request: Request)
 }
 
 export async function loginCustomer(input: LoginRequest, request: Request) {
+  const result = await loginAccount(input, request);
+
+  if (result.user.role !== CUSTOMER_ROLE) {
+    throw new AuthError(GENERIC_LOGIN_ERROR, 401);
+  }
+
+  return result;
+}
+
+export async function loginAdministrativeStaff(input: LoginRequest, request: Request) {
+  const result = await loginAccount(input, request);
+
+  if (result.user.role !== ADMINISTRATIVE_STAFF_ROLE) {
+    throw new AuthError(GENERIC_LOGIN_ERROR, 401);
+  }
+
+  return result;
+}
+
+export async function loginAccount(input: LoginRequest, request: Request) {
   const user = await findUserByEmail(input.email);
 
   if (!user) {
@@ -239,13 +260,13 @@ export async function loginCustomer(input: LoginRequest, request: Request) {
     throw new AuthError(GENERIC_LOGIN_ERROR, 401);
   }
 
-  if (user.role !== CUSTOMER_ROLE || user.status !== ACTIVE_STATUS) {
+  if (user.status !== ACTIVE_STATUS) {
     await writeSecurityEvent(
       String(user.user_id),
-      "customer_login_blocked",
+      "login_blocked",
       request,
       "medium",
-      "Login blocked because role or status is not allowed.",
+      "Login blocked because status is not allowed.",
     );
     throw new AuthError(GENERIC_LOGIN_ERROR, 401);
   }
@@ -256,7 +277,7 @@ export async function loginCustomer(input: LoginRequest, request: Request) {
     await updateFailedLogin(String(user.user_id));
     await writeSecurityEvent(
       String(user.user_id),
-      "customer_login_failed",
+      "login_failed",
       request,
       "medium",
       "Invalid password.",
@@ -275,7 +296,7 @@ export async function loginCustomer(input: LoginRequest, request: Request) {
     now,
     user.email,
   ]);
-  await writeSecurityEvent(String(user.user_id), "customer_login_success", request, "low", "Login succeeded.");
+  await writeSecurityEvent(String(user.user_id), "login_success", request, "low", "Login succeeded.");
 
   return {
     user: toAuthUser(user),
@@ -317,6 +338,33 @@ export async function getCurrentCustomer(cookieValue: string | undefined) {
   const user = await findUserById(payload.userId);
 
   if (!user || user.role !== CUSTOMER_ROLE || user.status !== ACTIVE_STATUS) {
+    return null;
+  }
+
+  return toAuthUser(user);
+}
+
+export async function getCurrentAdministrativeStaff(cookieValue: string | undefined) {
+  const payload = parseSessionCookie(cookieValue);
+
+  if (!payload || new Date(payload.expiresAt).getTime() <= Date.now()) {
+    return null;
+  }
+
+  const session = await findSession(payload.userId, payload.sessionId);
+
+  if (
+    !session ||
+    session.revoked_at ||
+    session.expires_at.getTime() <= Date.now() ||
+    !safeEqual(session.refresh_token_hash, hashSessionToken(payload.token))
+  ) {
+    return null;
+  }
+
+  const user = await findUserById(payload.userId);
+
+  if (!user || user.role !== ADMINISTRATIVE_STAFF_ROLE || user.status !== ACTIVE_STATUS) {
     return null;
   }
 

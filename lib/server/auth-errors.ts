@@ -9,5 +9,7 @@ export class AuthError extends Error {
     public readonly fields: AuthErrorField[] = [],
   ) {
     super(message);
+    this.name = "AuthError";
+    Object.setPrototypeOf(this, new.target.prototype);
   }
 }

@@ -2,16 +2,23 @@ import type { Metadata } from "next";
 
 import { AuthPageShell } from "@/components/customer-facing/auth-page-shell";
 import { RegisterForm } from "@/components/customer-facing/register-form";
+import { buildAuthAlternateHref } from "@/lib/server/auth-navigation";
 
 export const metadata: Metadata = {
   title: "Đăng ký | Online Travel Services",
 };
 
-export default function RegisterPage() {
+type PageProps = {
+  searchParams?: Promise<Record<string, string | string[] | undefined>> | Record<string, string | string[] | undefined>;
+};
+
+export default async function RegisterPage({ searchParams }: PageProps) {
+  const resolvedSearchParams = await Promise.resolve(searchParams);
+
   return (
     <AuthPageShell
       alternateAction={{
-        href: "/login",
+        href: buildAuthAlternateHref("/login", resolvedSearchParams?.next),
         label: "Đăng nhập",
         text: "Đã có tài khoản?",
       }}

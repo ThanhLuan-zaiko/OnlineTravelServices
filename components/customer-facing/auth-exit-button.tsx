@@ -2,11 +2,14 @@
 
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
-import { useEffect, useState } from "react";
 import { FiArrowLeft } from "react-icons/fi";
 
 function isAuthPath(pathname: string) {
-  return pathname === "/login" || pathname === "/register";
+  return pathname === "/login" || pathname === "/register" || pathname === "/internal/login";
+}
+
+function isProtectedPath(pathname: string) {
+  return pathname === "/account" || pathname.startsWith("/internal");
 }
 
 function getSafeInternalPath(value: string | null) {
@@ -21,7 +24,7 @@ function getSafeInternalPath(value: string | null) {
   try {
     const url = new URL(value, window.location.origin);
 
-    if (url.origin !== window.location.origin || isAuthPath(url.pathname)) {
+    if (url.origin !== window.location.origin || isAuthPath(url.pathname) || isProtectedPath(url.pathname)) {
       return null;
     }
 
@@ -46,7 +49,11 @@ export function AuthExitButton() {
     try {
       const referrer = new URL(document.referrer);
 
-      if (referrer.origin === window.location.origin && !isAuthPath(referrer.pathname)) {
+      if (
+        referrer.origin === window.location.origin &&
+        !isAuthPath(referrer.pathname) &&
+        !isProtectedPath(referrer.pathname)
+      ) {
         window.location.assign(`${referrer.pathname}${referrer.search}${referrer.hash}`);
         return;
       }
@@ -76,17 +83,8 @@ export function AuthAlternateLink({
   href: string;
   label: string;
 }) {
-  const searchParams = useSearchParams();
-  const [targetHref, setTargetHref] = useState(href);
-
-  useEffect(() => {
-    const nextPath = getSafeInternalPath(searchParams.get("next"));
-
-    setTargetHref(nextPath ? `${href}?next=${encodeURIComponent(nextPath)}` : href);
-  }, [href, searchParams]);
-
   return (
-    <Link className={className} href={targetHref}>
+    <Link className={className} href={href}>
       {label}
     </Link>
   );

@@ -3,13 +3,14 @@ import "server-only";
 import { types } from "cassandra-driver";
 
 import {
+  ADMINISTRATIVE_STAFF_ROLE,
   ACTIVE_STATUS,
   CUSTOMER_ROLE,
   DEFAULT_CUSTOMER_TIER,
   DEFAULT_VIP_TIER,
 } from "@/lib/server/auth-constants";
 import { executeQuery, getScyllaClient } from "@/lib/server/scylla";
-import type { AccountProfile, AuthUser } from "@/lib/shared/auth";
+import type { AccountProfile, AuthUser, UserRole } from "@/lib/shared/auth";
 
 export type UserByEmailRow = {
   email: string;
@@ -68,11 +69,16 @@ function localDateToString(value: types.LocalDate | string | null | undefined) {
 }
 
 export function toAuthUser(row: UserByEmailRow | UserByIdRow): AuthUser {
+  const role =
+    row.role === ADMINISTRATIVE_STAFF_ROLE || row.role === CUSTOMER_ROLE
+      ? (row.role as UserRole)
+      : CUSTOMER_ROLE;
+
   return {
     userId: String(row.user_id),
     email: row.email,
     fullName: row.full_name,
-    role: "customer",
+    role,
     customerTier: row.customer_tier ?? DEFAULT_CUSTOMER_TIER,
     vipTier: row.vip_tier ?? DEFAULT_VIP_TIER,
   };

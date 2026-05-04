@@ -8,8 +8,11 @@ export {
 } from "@/lib/server/auth-cookie";
 export { AuthError, type AuthErrorField } from "@/lib/server/auth-errors";
 export {
+  getCurrentAdministrativeStaff,
   getCurrentCustomer,
   getCurrentCustomerProfile,
+  loginAccount,
+  loginAdministrativeStaff,
   loginCustomer,
   logoutCustomer,
   registerCustomer,

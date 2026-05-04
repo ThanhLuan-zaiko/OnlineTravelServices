@@ -14,6 +14,28 @@ import { authSessionQueryKey } from "@/hooks/use-auth-session";
 
 type LoginErrors = Partial<Record<keyof LoginRequest, string>>;
 
+type LoginFormProps = {
+  nextPath: string | null;
+};
+
+function getSafeNextPath(value: string | null) {
+  if (!value || !value.startsWith("/")) {
+    return null;
+  }
+
+  try {
+    const url = new URL(value, window.location.origin);
+
+    if (url.origin !== window.location.origin) {
+      return null;
+    }
+
+    return `${url.pathname}${url.search}${url.hash}`;
+  } catch {
+    return null;
+  }
+}
+
 function getMessage(error: unknown) {
   return (error as ApiError | undefined)?.message ?? "Không thể đăng nhập lúc này.";
 }
@@ -32,7 +54,7 @@ function getFieldErrors(error: ZodError<LoginRequest>) {
   return errors;
 }
 
-export function LoginForm() {
+export function LoginForm({ nextPath }: LoginFormProps) {
   const router = useRouter();
   const queryClient = useQueryClient();
   const [isPending, setIsPending] = useState(false);
@@ -65,13 +87,19 @@ export function LoginForm() {
     try {
       const authResponse = await loginCustomerAccount(parsedInput.data);
       queryClient.setQueryData(authSessionQueryKey, { user: authResponse.user });
+      const safeNextPath = getSafeNextPath(nextPath);
+      const wantsInternalPath = Boolean(safeNextPath?.startsWith("/internal"));
+      const destination = wantsInternalPath ? "/" : safeNextPath ?? "/";
+
       showToast({
-        message: "Bạn sẽ được đưa về trang chủ trong giây lát.",
+        message: wantsInternalPath
+          ? "Khu vực nội bộ có cổng đăng nhập riêng."
+          : "Bạn sẽ được đưa về trang chủ trong giây lát.",
         title: "Đăng nhập thành công",
-        variant: "success",
+        variant: wantsInternalPath ? "warning" : "success",
       });
       window.setTimeout(() => {
-        router.replace("/");
+        router.replace(destination);
         router.refresh();
       }, 650);
     } catch (submissionError) {

@@ -8,6 +8,7 @@ import {
   loginCustomer,
 } from "@/lib/server/auth";
 import { assertSameOriginRequest } from "@/lib/server/request-security";
+import { logServerError } from "@/lib/server/server-log";
 import { loginRequestSchema } from "@/lib/shared/auth";
 
 export const dynamic = "force-dynamic";
@@ -56,6 +57,13 @@ export async function POST(request: Request) {
     return response;
   } catch (error) {
     const { message, status } = getErrorMessage(error);
+
+    if (status >= 500) {
+      logServerError("customer auth login failed", error, {
+        method: request.method,
+        path: "/api/auth/login",
+      });
+    }
 
     return NextResponse.json({ message }, { status });
   }

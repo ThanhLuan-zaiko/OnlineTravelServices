@@ -1,36 +1,126 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# ✦ Online Travel Services
 
-## Getting Started
+Ứng dụng web dịch vụ du lịch trực tuyến, xây dựng bằng Next.js App Router, React TypeScript, Tailwind CSS v4 và ScyllaDB. Dự án có giao diện khách hàng và cổng nội bộ riêng cho quyền `AdministrativeStaff` tại `/internal`.
 
-First, run the development server:
+## ⬢ Bức Tranh Tổng Quan
 
-```bash
-npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
+- ◇ **Customer-facing portal**: đăng ký, đăng nhập, hồ sơ tài khoản và giao diện light/dark responsive.
+- ◇ **Internal portal**: quản lý tour, doanh thu tour, lịch khởi hành, lịch trình và khuyến mãi cho `AdministrativeStaff`.
+- ◇ **Auth phân quyền**: session cookie dùng chung, guard riêng cho customer và staff.
+- ◇ **ScyllaDB query-oriented schema**: dữ liệu được lưu theo các bảng lookup/projection trong `schema.cql`.
+- ◇ **Seed role an toàn**: tài khoản staff đầu tiên được tạo từ `.env.local`, không hardcode secret vào GitHub.
+
+## ✧ Tech Stack
+
+| Lớp | Công nghệ |
+| --- | --- |
+| Web app | Next.js 16 App Router, React 19, TypeScript |
+| UI | Tailwind CSS v4, React Icons, light/dark theme |
+| Client data | TanStack Query, Axios, Zustand |
+| Server data | ScyllaDB qua `cassandra-driver` |
+| Auth | Argon2 password hash, signed HTTP-only session cookie |
+| Runtime | Bun |
+
+## ◈ Chạy Nhanh Sau Khi Clone
+
+```powershell
+git clone <repository-url>
+cd onlinetravelservices
+bun install
+Copy-Item .env.example .env.local
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+Cập nhật `.env.local` theo môi trường máy bạn:
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+```env
+SCYLLA_CONTACT_POINTS=127.0.0.1
+SCYLLA_PORT=9042
+SCYLLA_LOCAL_DATACENTER=datacenter1
+SCYLLA_KEYSPACE=online_travel_services
+AUTH_SECRET=replace-with-at-least-32-random-characters
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+ADMINISTRATIVE_STAFF_EMAIL=staff@example.com
+ADMINISTRATIVE_STAFF_PASSWORD=replace-with-a-strong-password
+ADMINISTRATIVE_STAFF_FULL_NAME=Administrative Staff
+ADMINISTRATIVE_STAFF_PHONE=0900000000
+```
 
-## Learn More
+Khởi tạo database local:
 
-To learn more about Next.js, take a look at the following resources:
+```powershell
+.\reset_database.ps1
+```
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+Seed tài khoản `AdministrativeStaff` đầu tiên:
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+```powershell
+bun run seed:administrative-staff
+```
 
-## Deploy on Vercel
+Chạy ứng dụng:
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
+```powershell
+bun run dev
+```
 
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+Mở trình duyệt:
+
+- ⟡ Customer portal: `http://localhost:3000`
+- ⟡ Internal access: `http://localhost:3000/internal/login`
+
+## ⟡ Seed Role AdministrativeStaff
+
+Script `bun run seed:administrative-staff` đọc các biến `ADMINISTRATIVE_STAFF_*` từ môi trường, hash mật khẩu bằng Argon2, rồi ghi đồng bộ vào:
+
+- `users_by_id`
+- `users_by_email`
+- `users_by_phone`
+- `users_by_role`
+- `staff_by_id`
+- `staff_by_role`
+
+Không commit `.env.local`. File này chứa email, mật khẩu seed và `AUTH_SECRET`, chỉ dùng cục bộ hoặc qua secret manager khi deploy.
+
+## ◇ Cổng Nội Bộ `/internal`
+
+Quyền hiện tại: `administrative_staff`.
+
+Chức năng đã có:
+
+- Quản lý thông tin tour.
+- Quản lý lịch khởi hành và lịch trình từng tour.
+- Quản lý chương trình khuyến mãi.
+- Theo dõi doanh thu tour từ bảng thống kê.
+
+Các route chính:
+
+- `/internal`
+- `/internal/tours`
+- `/internal/tours/[tourId]`
+- `/internal/schedules`
+- `/internal/promotions`
+- `/internal/revenue`
+
+## ✦ Lệnh Thường Dùng
+
+```powershell
+bun run dev
+bun run build
+bun run lint
+bun run seed:administrative-staff
+.\reset_database.ps1
+```
+
+## ⬡ Tài Liệu Chi Tiết
+
+- [Hướng dẫn setup local](docs/setup-local.md)
+- [Cổng nội bộ và seed role](docs/internal-portal.md)
+- [Ghi chú database ScyllaDB](docs/database.md)
+
+## ◈ Ghi Chú Phát Triển
+
+- Dùng Bun cho package/script.
+- Khi thay đổi data access, ưu tiên query pattern đã có trong `schema.cql`.
+- Không dùng relational join hoặc lọc thủ công trên partition lớn.
+- Giữ UI đồng bộ với Tailwind setup và theme controller hiện có.
+- Khi thêm role mới như Operations Staff, Statistics Staff hoặc Admin tổng, mở rộng role guard thay vì bỏ qua kiểm tra quyền.

@@ -6,7 +6,8 @@
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
-    "lint": "eslint"
+    "lint": "eslint",
+    "seed:administrative-staff": "bun run scripts/seed-administrative-staff.ts"
   },
   "dependencies": {
     "@node-rs/argon2": "^2.0.2",
