@@ -30,7 +30,7 @@ export async function writeSecurityEvent(
      VALUES (?, ?, ?, ?, ?, ?, ?)`,
     [
       userId,
-      types.TimeUuid.now(),
+      String(types.TimeUuid.now()),
       eventType,
       getClientIp(request),
       getUserAgent(request),

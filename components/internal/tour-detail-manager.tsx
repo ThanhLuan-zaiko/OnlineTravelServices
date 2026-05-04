@@ -5,6 +5,8 @@ import Link from "next/link";
 import { useState } from "react";
 import { FiArrowLeft, FiPlus, FiSave, FiTrash2 } from "react-icons/fi";
 
+import { ConfirmModal } from "@/components/ui/confirm-modal";
+import { SelectField } from "@/components/ui/select-field";
 import { useToast } from "@/components/ui/toast";
 import {
   createInternalSchedule,
@@ -26,6 +28,8 @@ import {
 } from "@/lib/shared/internal";
 
 import { EmptyState, InternalPanel, InternalPageHeader, StatusPill } from "./internal-primitives";
+import { TourMediaManager } from "./tour-media-manager";
+import { TourVehicleManager } from "./tour-vehicle-manager";
 
 const scheduleInitial: ScheduleMutationRequest = {
   availableSlots: 20,
@@ -55,6 +59,11 @@ export function TourDetailManager({ tourId }: { tourId: string }) {
   const [scheduleForm, setScheduleForm] = useState<ScheduleMutationRequest>(scheduleInitial);
   const [itineraryForm, setItineraryForm] = useState<ItineraryMutationRequest>(itineraryInitial);
   const [error, setError] = useState<string | null>(null);
+  const [pendingDelete, setPendingDelete] = useState<
+    | { kind: "schedule"; schedule: InternalSchedule }
+    | { kind: "itinerary"; item: InternalItineraryItem }
+    | null
+  >(null);
   const tourQuery = useQuery({
     queryKey: ["internal", "tour", tourId],
     queryFn: () => getInternalTour(tourId),
@@ -87,15 +96,26 @@ export function TourDetailManager({ tourId }: { tourId: string }) {
   });
   const deleteScheduleMutation = useMutation({
     mutationFn: (schedule: InternalSchedule) => deleteInternalSchedule(tourId, schedule),
-    onSuccess: () => queryClient.invalidateQueries({ queryKey: ["internal", "schedules", tourId] }),
+    onSuccess: async () => {
+      await queryClient.invalidateQueries({ queryKey: ["internal", "schedules", tourId] });
+      setPendingDelete(null);
+    },
   });
   const deleteItineraryMutation = useMutation({
     mutationFn: (item: InternalItineraryItem) => deleteInternalItineraryItem(tourId, item),
-    onSuccess: () => queryClient.invalidateQueries({ queryKey: ["internal", "itinerary", tourId] }),
+    onSuccess: async () => {
+      await queryClient.invalidateQueries({ queryKey: ["internal", "itinerary", tourId] });
+      setPendingDelete(null);
+    },
   });
   const tour = tourQuery.data?.tour;
   const schedules = schedulesQuery.data?.schedules ?? [];
   const itinerary = itineraryQuery.data?.items ?? [];
+  const scheduleStatusOptions = [
+    { label: "open", value: "open" },
+    { label: "closed", value: "closed" },
+    { label: "cancelled", value: "cancelled" },
+  ];
 
   const submitSchedule = (event: React.FormEvent<HTMLFormElement>) => {
     event.preventDefault();
@@ -132,7 +152,11 @@ export function TourDetailManager({ tourId }: { tourId: string }) {
             Về danh sách
           </Link>
         }
-        description={tour ? `${tour.destinationName} - ${tour.durationDays} ngày ${tour.durationNights} đêm` : "Quản lý lịch khởi hành và lịch trình chi tiết của tour."}
+        description={
+          tour
+            ? `${tour.destinationName} - ${tour.durationDays} ngày ${tour.durationNights} đêm - ${tour.vehicleCatalogLabel} (${tour.vehicleCapacity} chỗ)`
+            : "Quản lý lịch khởi hành và lịch trình chi tiết của tour."
+        }
         title={tour?.title ?? "Chi tiết tour"}
       />
 
@@ -148,11 +172,14 @@ export function TourDetailManager({ tourId }: { tourId: string }) {
             <div className="grid gap-3 sm:grid-cols-2">
               <input className="h-11 rounded-xl border border-slate-200 bg-white px-3 text-sm dark:border-neutral-800 dark:bg-black" type="date" value={scheduleForm.departureDate} onChange={(event) => setScheduleForm((current) => ({ ...current, departureDate: event.target.value }))} />
               <input className="h-11 rounded-xl border border-slate-200 bg-white px-3 text-sm dark:border-neutral-800 dark:bg-black" value={scheduleForm.departureTime} onChange={(event) => setScheduleForm((current) => ({ ...current, departureTime: event.target.value }))} />
-              <select className="h-11 rounded-xl border border-slate-200 bg-white px-3 text-sm dark:border-neutral-800 dark:bg-black" value={scheduleForm.status} onChange={(event) => setScheduleForm((current) => ({ ...current, status: event.target.value as ScheduleMutationRequest["status"] }))}>
-                <option value="open">open</option>
-                <option value="closed">closed</option>
-                <option value="cancelled">cancelled</option>
-              </select>
+              <SelectField
+                label="Trạng thái"
+                name="schedule-status"
+                onValueChange={(value) => setScheduleForm((current) => ({ ...current, status: value as ScheduleMutationRequest["status"] }))}
+                options={scheduleStatusOptions}
+                placeholder="Chọn trạng thái"
+                value={scheduleForm.status}
+              />
               <input className="h-11 rounded-xl border border-slate-200 bg-white px-3 text-sm dark:border-neutral-800 dark:bg-black" placeholder="Giá" value={scheduleForm.price} onChange={(event) => setScheduleForm((current) => ({ ...current, price: event.target.value }))} />
               <input className="h-11 rounded-xl border border-slate-200 bg-white px-3 text-sm dark:border-neutral-800 dark:bg-black" type="number" value={scheduleForm.availableSlots} onChange={(event) => setScheduleForm((current) => ({ ...current, availableSlots: Number(event.target.value) }))} />
               <input className="h-11 rounded-xl border border-slate-200 bg-white px-3 text-sm dark:border-neutral-800 dark:bg-black" type="number" value={scheduleForm.bookedSlots} onChange={(event) => setScheduleForm((current) => ({ ...current, bookedSlots: Number(event.target.value) }))} />
@@ -174,7 +201,7 @@ export function TourDetailManager({ tourId }: { tourId: string }) {
                   </div>
                   <div className="flex items-center gap-2">
                     <StatusPill value={schedule.status} />
-                    <button className="flex h-9 w-9 items-center justify-center rounded-lg border border-slate-200 dark:border-neutral-800" onClick={() => deleteScheduleMutation.mutate(schedule)} type="button" aria-label="Xóa lịch">
+                    <button className="flex h-9 w-9 items-center justify-center rounded-lg border border-slate-200 dark:border-neutral-800" onClick={() => setPendingDelete({ kind: "schedule", schedule })} type="button" aria-label="Xóa lịch">
                       <FiTrash2 size={15} />
                     </button>
                   </div>
@@ -213,7 +240,7 @@ export function TourDetailManager({ tourId }: { tourId: string }) {
                     <p className="text-sm font-semibold">Ngày {item.dayNumber}.{item.itemOrder} - {item.title}</p>
                     <p className="mt-1 text-xs text-slate-500">{item.locationName ?? "Chưa có địa điểm"}</p>
                   </div>
-                  <button className="flex h-9 w-9 items-center justify-center rounded-lg border border-slate-200 dark:border-neutral-800" onClick={() => deleteItineraryMutation.mutate(item)} type="button" aria-label="Xóa mục">
+                  <button className="flex h-9 w-9 items-center justify-center rounded-lg border border-slate-200 dark:border-neutral-800" onClick={() => setPendingDelete({ kind: "itinerary", item })} type="button" aria-label="Xóa mục">
                     <FiTrash2 size={15} />
                   </button>
                 </div>
@@ -222,6 +249,32 @@ export function TourDetailManager({ tourId }: { tourId: string }) {
           </div>
         </InternalPanel>
       </div>
+
+      <div className="grid gap-5 xl:grid-cols-2">
+        <TourMediaManager coverImageUrl={tour?.coverImageUrl ?? null} tour={tour} tourId={tourId} />
+        <TourVehicleManager tourId={tourId} />
+      </div>
+
+      <ConfirmModal
+        confirmLabel={pendingDelete?.kind === "itinerary" ? "Xóa mục" : "Xóa lịch"}
+        description={
+          pendingDelete?.kind === "itinerary"
+            ? "Mục lịch trình sẽ bị xóa khỏi tour."
+            : "Lịch khởi hành sẽ bị xóa khỏi tour này."
+        }
+        open={pendingDelete !== null}
+        onCancel={() => setPendingDelete(null)}
+        onConfirm={() => {
+          if (pendingDelete?.kind === "schedule") {
+            deleteScheduleMutation.mutate(pendingDelete.schedule);
+          }
+
+          if (pendingDelete?.kind === "itinerary") {
+            deleteItineraryMutation.mutate(pendingDelete.item);
+          }
+        }}
+        title={pendingDelete?.kind === "itinerary" ? "Xóa mục lịch trình?" : "Xóa lịch khởi hành?"}
+      />
     </div>
   );
 }

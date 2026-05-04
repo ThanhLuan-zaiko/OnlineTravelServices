@@ -85,9 +85,10 @@ export async function listInternalTours(status?: string) {
 export async function findInternalTour(tourId: string) {
   const rows = await executeQuery<TourByIdRow>(
     `SELECT tour_id, title, slug, destination_id, destination_name, category, status, tour_type,
+            vehicle_catalog_label, vehicle_catalog_id, vehicle_type, vehicle_model, vehicle_capacity,
             base_price, currency, duration_days, duration_nights, max_guests, min_guests,
             average_rating, rating_count, vip_only, created_by, approved_by, created_at,
-            updated_at, published_at, summary, included_services, excluded_services
+            updated_at, published_at, summary, included_services, excluded_services, cover_image_url
      FROM tours_by_id
      WHERE tour_id = ?`,
     [tourId],
@@ -104,10 +105,11 @@ export async function createInternalTour(input: TourMutationRequest, actorUserId
   await executeQuery(
     `INSERT INTO tours_by_id
       (tour_id, title, slug, destination_id, destination_name, category, status, tour_type,
+       vehicle_catalog_label, vehicle_catalog_id, vehicle_type, vehicle_model, vehicle_capacity,
        base_price, currency, duration_days, duration_nights, max_guests, min_guests,
        average_rating, rating_count, vip_only, created_by, approved_by, created_at,
-       updated_at, published_at, summary, included_services, excluded_services)
-     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+       updated_at, published_at, summary, included_services, excluded_services, cover_image_url)
+     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)` ,
     [
       tourId,
       input.title,
@@ -117,6 +119,11 @@ export async function createInternalTour(input: TourMutationRequest, actorUserId
       input.category,
       input.status,
       input.tourType,
+      input.vehicleCatalogLabel,
+      input.vehicleCatalogId,
+      input.vehicleType,
+      input.vehicleModel,
+      input.vehicleCapacity,
       decimal(input.basePrice),
       input.currency,
       input.durationDays,
@@ -134,6 +141,7 @@ export async function createInternalTour(input: TourMutationRequest, actorUserId
       input.summary ?? null,
       input.includedServices,
       input.excludedServices,
+      null,
     ],
   );
   await writeTourProjections(tourId, input, actorUserId);
@@ -154,7 +162,8 @@ export async function updateInternalTour(tourId: string, input: TourMutationRequ
   await executeQuery(
     `UPDATE tours_by_id
      SET title = ?, slug = ?, destination_id = ?, destination_name = ?, category = ?, status = ?,
-         tour_type = ?, base_price = ?, currency = ?, duration_days = ?, duration_nights = ?,
+         tour_type = ?, vehicle_catalog_label = ?, vehicle_catalog_id = ?, vehicle_type = ?, vehicle_model = ?, vehicle_capacity = ?,
+         base_price = ?, currency = ?, duration_days = ?, duration_nights = ?,
          max_guests = ?, min_guests = ?, vip_only = ?, updated_at = ?, published_at = ?,
          summary = ?, included_services = ?, excluded_services = ?
      WHERE tour_id = ?`,
@@ -166,6 +175,11 @@ export async function updateInternalTour(tourId: string, input: TourMutationRequ
       input.category,
       input.status,
       input.tourType,
+      input.vehicleCatalogLabel,
+      input.vehicleCatalogId,
+      input.vehicleType,
+      input.vehicleModel,
+      input.vehicleCapacity,
       decimal(input.basePrice),
       input.currency,
       input.durationDays,

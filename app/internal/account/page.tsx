@@ -13,17 +13,20 @@ export const metadata: Metadata = {
   title: "Tài khoản nội bộ | Online Travel Services",
 };
 
+function InternalAccountContent({ profile }: { profile: Awaited<ReturnType<typeof getCurrentAdministrativeStaffProfile>> }) {
+  return (
+    <InternalShell user={profile}>
+      <InternalAccountForm profile={profile} />
+    </InternalShell>
+  );
+}
+
 export default async function InternalAccountPage() {
   const cookieStore = await cookies();
+  let profile: Awaited<ReturnType<typeof getCurrentAdministrativeStaffProfile>>;
 
   try {
-    const profile = await getCurrentAdministrativeStaffProfile(cookieStore.get(AUTH_COOKIE_NAME)?.value);
-
-    return (
-      <InternalShell user={profile}>
-        <InternalAccountForm profile={profile} />
-      </InternalShell>
-    );
+    profile = await getCurrentAdministrativeStaffProfile(cookieStore.get(AUTH_COOKIE_NAME)?.value);
   } catch (error) {
     if (error instanceof AuthError && error.status === 401) {
       redirect("/internal/login?next=/internal/account");
@@ -31,4 +34,6 @@ export default async function InternalAccountPage() {
 
     throw error;
   }
+
+  return <InternalAccountContent profile={profile} />;
 }

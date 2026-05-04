@@ -284,6 +284,10 @@ CREATE TABLE IF NOT EXISTS destinations_by_id (
   status text,
   description text,
   cover_image_url text,
+  address text,
+  latitude decimal,
+  longitude decimal,
+  search_keywords list<text>,
   average_rating decimal,
   safety_level text,
   popularity_score int,
@@ -363,9 +367,15 @@ CREATE TABLE IF NOT EXISTS tours_by_id (
   slug text,
   destination_id uuid,
   destination_name text,
+  cover_image_url text,
   category text,
   status text,
   tour_type text,
+  vehicle_catalog_label text,
+  vehicle_catalog_id text,
+  vehicle_type text,
+  vehicle_model text,
+  vehicle_capacity int,
   base_price decimal,
   currency text,
   duration_days int,
@@ -474,6 +484,35 @@ CREATE TABLE IF NOT EXISTS tour_media_by_tour (
   uploaded_by uuid,
   uploaded_at timestamp,
   PRIMARY KEY ((tour_id), media_order, media_id)
+);
+
+CREATE TABLE IF NOT EXISTS tour_vehicles_by_tour (
+  tour_id uuid,
+  vehicle_id uuid,
+  vehicle_type text,
+  plate_number text,
+  model text,
+  capacity int,
+  driver_name text,
+  driver_phone text,
+  notes text,
+  status text,
+  updated_at timestamp,
+  PRIMARY KEY ((tour_id), vehicle_id)
+);
+
+CREATE TABLE IF NOT EXISTS vehicle_catalog_by_bucket (
+  catalog_bucket text,
+  vehicle_catalog_id uuid,
+  image_url text,
+  label text,
+  vehicle_type text,
+  vehicle_model text,
+  vehicle_capacity int,
+  status text,
+  thumbnail_url text,
+  updated_at timestamp,
+  PRIMARY KEY ((catalog_bucket), vehicle_catalog_id)
 );
 
 CREATE TABLE IF NOT EXISTS service_providers_by_type (

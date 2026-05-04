@@ -3,10 +3,17 @@ import "server-only";
 import { types } from "cassandra-driver";
 
 import type {
+  InternalDestination,
+  InternalDestinationMedia,
   InternalItineraryItem,
   InternalPromotion,
   InternalSchedule,
+  InternalServiceCatalog,
+  InternalServiceProvider,
   InternalTour,
+  InternalTourMedia,
+  InternalTourVehicle,
+  InternalVehicleCatalogItem,
 } from "@/lib/shared/internal";
 
 export const TOUR_LIST_STATUSES = ["published", "draft", "archived"] as const;
@@ -27,6 +34,12 @@ export type TourByIdRow = {
   duration_nights: number;
   excluded_services: string[] | null;
   included_services: string[] | null;
+  cover_image_url: string | null;
+  vehicle_catalog_label: string | null;
+  vehicle_catalog_id: string | null;
+  vehicle_capacity: number | null;
+  vehicle_model: string | null;
+  vehicle_type: string | null;
   max_guests: number;
   min_guests: number;
   published_at: Date | null;
@@ -39,6 +52,114 @@ export type TourByIdRow = {
   tour_type: string;
   updated_at: Date;
   vip_only: boolean;
+};
+
+export type DestinationByIdRow = {
+  address: string | null;
+  average_rating: unknown;
+  category: string;
+  city: string;
+  country: string;
+  created_at: Date;
+  description: string | null;
+  destination_id: string;
+  latitude: unknown | null;
+  longitude: unknown | null;
+  name: string;
+  popularity_score: number;
+  region: string;
+  safety_level: string;
+  search_keywords: string[] | null;
+  status: "archived" | "draft" | "published";
+  updated_at: Date;
+  cover_image_url: string | null;
+};
+
+export type DestinationStatusRow = {
+  address: string | null;
+  city: string;
+  country: string;
+  destination_id: string;
+  name: string;
+  region: string;
+  status: "archived" | "draft" | "published";
+  updated_at: Date;
+};
+
+export type DestinationMediaRow = {
+  destination_id: string;
+  media_id: string;
+  media_order: number;
+  media_type: string;
+  media_url: string;
+  thumbnail_url: string;
+  title: string | null;
+  uploaded_at: Date;
+  uploaded_by: string | null;
+};
+
+export type ServiceCatalogRow = {
+  base_price: unknown;
+  currency: string;
+  destination_id: string;
+  description: string | null;
+  name: string;
+  provider_id: string | null;
+  service_id: string;
+  service_type: string;
+  status: "archived" | "draft" | "published";
+  updated_at: Date;
+};
+
+export type ServiceProviderRow = {
+  contract_status: "active" | "draft" | "expired";
+  email: string;
+  phone: string;
+  provider_id: string;
+  provider_name: string;
+  rating: unknown;
+  region: string;
+  service_type: string;
+  status: "active" | "inactive" | "suspended";
+  updated_at: Date;
+};
+
+export type VehicleCatalogRow = {
+  catalog_bucket: string;
+  image_url: string | null;
+  label: string;
+  status: "active" | "inactive";
+  updated_at: Date;
+  thumbnail_url: string | null;
+  vehicle_capacity: number;
+  vehicle_catalog_id: string;
+  vehicle_model: string;
+  vehicle_type: string;
+};
+
+export type TourMediaRow = {
+  media_id: string;
+  media_order: number;
+  media_type: string;
+  media_url: string;
+  thumbnail_url: string;
+  title: string | null;
+  uploaded_at: Date;
+  uploaded_by: string | null;
+};
+
+export type TourVehicleRow = {
+  capacity: number;
+  driver_name: string;
+  driver_phone: string;
+  model: string;
+  notes: string | null;
+  plate_number: string;
+  status: "active" | "inactive" | "maintenance";
+  tour_id: string;
+  updated_at: Date;
+  vehicle_id: string;
+  vehicle_type: string;
 };
 
 export type TourStatusRow = {
@@ -90,6 +211,10 @@ export function decimal(value: string) {
   return types.BigDecimal.fromString(value);
 }
 
+export function decimalFromNumber(value: number) {
+  return types.BigDecimal.fromString(Number.isFinite(value) ? value.toString() : "0");
+}
+
 export function decimalToString(value: unknown) {
   return value == null ? "0" : String(value);
 }
@@ -113,6 +238,12 @@ export function toTour(row: TourByIdRow): InternalTour {
     currency: row.currency,
     destinationId: String(row.destination_id),
     destinationName: row.destination_name,
+    coverImageUrl: row.cover_image_url,
+    vehicleCatalogLabel: row.vehicle_catalog_label ?? "",
+    vehicleCatalogId: row.vehicle_catalog_id ?? "",
+    vehicleCapacity: row.vehicle_capacity ?? 0,
+    vehicleModel: row.vehicle_model ?? "",
+    vehicleType: row.vehicle_type ?? "",
     durationDays: row.duration_days,
     durationNights: row.duration_nights,
     excludedServices: row.excluded_services ?? [],
@@ -129,6 +260,117 @@ export function toTour(row: TourByIdRow): InternalTour {
     tourType: row.tour_type,
     updatedAt: row.updated_at.toISOString(),
     vipOnly: row.vip_only,
+  };
+}
+
+export function toDestination(row: DestinationByIdRow, mediaCount = 0): InternalDestination {
+  return {
+    address: row.address,
+    averageRating: decimalToString(row.average_rating),
+    category: row.category,
+    city: row.city,
+    country: row.country,
+    createdAt: row.created_at.toISOString(),
+    coverImageUrl: row.cover_image_url,
+    destinationId: String(row.destination_id),
+    description: row.description,
+    latitude: row.latitude == null ? 0 : Number(row.latitude),
+    longitude: row.longitude == null ? 0 : Number(row.longitude),
+    mediaCount,
+    name: row.name,
+    popularityScore: row.popularity_score,
+    region: row.region,
+    safetyLevel: row.safety_level,
+    searchKeywords: row.search_keywords ?? [],
+    status: row.status,
+    updatedAt: row.updated_at.toISOString(),
+  };
+}
+
+export function toDestinationMedia(row: DestinationMediaRow): InternalDestinationMedia {
+  return {
+    destinationId: String(row.destination_id),
+    mediaId: String(row.media_id),
+    mediaOrder: row.media_order,
+    mediaType: row.media_type,
+    mediaUrl: row.media_url,
+    thumbnailUrl: row.thumbnail_url,
+    title: row.title,
+    uploadedAt: row.uploaded_at.toISOString(),
+    uploadedBy: row.uploaded_by ? String(row.uploaded_by) : null,
+  };
+}
+
+export function toServiceCatalog(row: ServiceCatalogRow): InternalServiceCatalog {
+  return {
+    basePrice: decimalToString(row.base_price),
+    currency: row.currency,
+    destinationId: String(row.destination_id),
+    description: row.description,
+    name: row.name,
+    providerId: row.provider_id ? String(row.provider_id) : null,
+    serviceId: String(row.service_id),
+    serviceType: row.service_type,
+    status: row.status,
+    updatedAt: row.updated_at.toISOString(),
+  };
+}
+
+export function toServiceProvider(row: ServiceProviderRow): InternalServiceProvider {
+  return {
+    contractStatus: row.contract_status,
+    email: row.email,
+    phone: row.phone,
+    providerId: String(row.provider_id),
+    providerName: row.provider_name,
+    rating: Number(row.rating),
+    region: row.region,
+    serviceType: row.service_type,
+    status: row.status,
+    updatedAt: row.updated_at.toISOString(),
+  };
+}
+
+export function toVehicleCatalogItem(row: VehicleCatalogRow): InternalVehicleCatalogItem {
+  return {
+    label: row.label,
+    imageUrl: row.image_url,
+    status: row.status,
+    thumbnailUrl: row.thumbnail_url,
+    updatedAt: row.updated_at.toISOString(),
+    vehicleCapacity: row.vehicle_capacity,
+    vehicleCatalogId: String(row.vehicle_catalog_id),
+    vehicleModel: row.vehicle_model,
+    vehicleType: row.vehicle_type,
+  };
+}
+
+export function toTourMedia(row: TourMediaRow): InternalTourMedia {
+  return {
+    mediaId: String(row.media_id),
+    mediaOrder: row.media_order,
+    mediaType: row.media_type,
+    mediaUrl: row.media_url,
+    thumbnailUrl: row.thumbnail_url,
+    title: row.title,
+    uploadedAt: row.uploaded_at.toISOString(),
+    uploadedBy: row.uploaded_by ? String(row.uploaded_by) : null,
+  };
+}
+
+export function toTourVehicle(row: TourVehicleRow): InternalTourVehicle {
+  return {
+    capacity: row.capacity,
+    driverName: row.driver_name,
+    driverPhone: row.driver_phone,
+    model: row.model,
+    notes: row.notes,
+    plateNumber: row.plate_number,
+    status: row.status,
+    tourId: String(row.tour_id),
+    updatedAt: row.updated_at.toISOString(),
+    vehicleId: String(row.vehicle_id),
+    vehicleType: row.vehicle_type,
   };
 }
 

@@ -11,6 +11,7 @@ export type SelectOption = {
 type SelectFieldProps = {
   buttonClassName?: string;
   className?: string;
+  disabled?: boolean;
   error?: string;
   hideChevron?: boolean;
   hidePlaceholderOption?: boolean;
@@ -29,6 +30,7 @@ type SelectFieldProps = {
 export function SelectField({
   buttonClassName,
   className,
+  disabled = false,
   error,
   hideChevron = false,
   hidePlaceholderOption = false,
@@ -93,15 +95,20 @@ export function SelectField({
       <button
         aria-describedby={error ? errorId : undefined}
         aria-controls={listboxId}
-        aria-expanded={isOpen}
+        aria-expanded={disabled ? false : isOpen}
         aria-haspopup="listbox"
         className={`flex h-12 w-full items-center justify-between rounded-xl border bg-white px-4 text-left text-sm font-semibold text-slate-950 outline-none transition dark:bg-black dark:text-neutral-50 ${
           error
             ? "border-rose-300 focus:border-rose-500 focus:ring-4 focus:ring-rose-500/10 dark:border-rose-900"
             : `border-slate-200 dark:border-neutral-800 ${focusClass}`
-        } ${buttonClassName ?? ""}`}
+        } ${disabled ? "cursor-not-allowed opacity-70" : ""} ${buttonClassName ?? ""}`}
         id={name}
-        onClick={() => setIsOpen((current) => !current)}
+        onClick={() => {
+          if (!disabled) {
+            setIsOpen((current) => !current);
+          }
+        }}
+        disabled={disabled}
         type="button"
       >
         <span className={selectedOption ? "" : "text-slate-500 dark:text-neutral-400"}>
@@ -115,7 +122,7 @@ export function SelectField({
         )}
       </button>
 
-      {isOpen ? (
+      {isOpen && !disabled ? (
         <div
           className={`absolute top-full z-50 mt-2 overflow-hidden rounded-xl border border-slate-200 bg-white p-1 shadow-xl shadow-slate-200/70 dark:border-neutral-800 dark:bg-neutral-950 dark:shadow-black/40 ${popoverClassName ?? "left-0 right-0"}`}
           id={listboxId}

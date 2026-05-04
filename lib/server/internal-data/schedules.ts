@@ -6,7 +6,7 @@ import { uuidv7 } from "uuidv7";
 import { executeQuery } from "@/lib/server/scylla";
 import type { ScheduleMutationRequest } from "@/lib/shared/internal";
 
-import { decimal, localDateToString, toSchedule, type ScheduleRow } from "./shared";
+import { decimal, toSchedule, type ScheduleRow } from "./shared";
 
 export async function listSchedulesByTour(tourId: string) {
   const rows = await executeQuery<ScheduleRow>(

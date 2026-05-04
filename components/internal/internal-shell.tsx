@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { useQueryClient } from "@tanstack/react-query";
-import { useEffect, useMemo, useState, type ReactNode } from "react";
+import { createContext, useContext, useEffect, useMemo, useState, type ReactNode } from "react";
 import {
   FiBarChart2,
   FiCalendar,
@@ -11,12 +11,17 @@ import {
   FiChevronRight,
   FiGift,
   FiHome,
+  FiGrid,
   FiLogOut,
   FiMenu,
   FiPackage,
+  FiMapPin,
+  FiTruck,
+  FiTool,
 } from "react-icons/fi";
 
 import { ThemeToggle, useThemeController } from "@/components/customer-facing/theme-controller";
+import { ConfirmModal } from "@/components/ui/confirm-modal";
 import { internalSessionQueryKey } from "@/hooks/use-internal-session";
 import { logoutInternalAccount } from "@/lib/client/api-client";
 import type { AuthUser } from "@/lib/shared/auth";
@@ -24,6 +29,10 @@ import type { AuthUser } from "@/lib/shared/auth";
 const navItems = [
   { href: "/internal", icon: FiHome, label: "Tổng quan" },
   { href: "/internal/tours", icon: FiPackage, label: "Quản lý tour" },
+  { href: "/internal/destinations", icon: FiMapPin, label: "Quản lý địa điểm tour" },
+  { href: "/internal/vehicle-catalog", icon: FiGrid, label: "Danh mục phương tiện" },
+  { href: "/internal/services", icon: FiTool, label: "Quản lý dịch vụ đi kèm" },
+  { href: "/internal/providers", icon: FiTruck, label: "Nhà cung cấp" },
   { href: "/internal/revenue", icon: FiBarChart2, label: "Doanh thu tour" },
   { href: "/internal/schedules", icon: FiCalendar, label: "Lịch trình" },
   { href: "/internal/promotions", icon: FiGift, label: "Khuyến mãi" },
@@ -35,6 +44,23 @@ type InternalShellProps = {
   children: ReactNode;
   user: AuthUser;
 };
+
+type UnsavedChangesContextValue = {
+  isDirty: boolean;
+  setIsDirty: (value: boolean) => void;
+};
+
+const UnsavedChangesContext = createContext<UnsavedChangesContextValue | null>(null);
+
+export function useInternalUnsavedChanges() {
+  const context = useContext(UnsavedChangesContext);
+
+  if (!context) {
+    throw new Error("useInternalUnsavedChanges must be used within InternalShell.");
+  }
+
+  return context;
+}
 
 function getInitials(name: string) {
   return name
@@ -50,21 +76,70 @@ export function InternalShell({ children, user }: InternalShellProps) {
   const router = useRouter();
   const queryClient = useQueryClient();
   const [isMobileOpen, setIsMobileOpen] = useState(false);
-  const [isCollapsed, setIsCollapsed] = useState(false);
+  const [isDirty, setIsDirty] = useState(false);
+  const [pendingHref, setPendingHref] = useState<string | null>(null);
+  const [isLeaveModalOpen, setIsLeaveModalOpen] = useState(false);
+  const [isCollapsed, setIsCollapsed] = useState(() => {
+    if (typeof window === "undefined") {
+      return false;
+    }
+
+    return window.localStorage.getItem(COLLAPSED_STORAGE_KEY) === "1";
+  });
 
   useThemeController();
 
   useEffect(() => {
-    const stored = window.localStorage.getItem(COLLAPSED_STORAGE_KEY);
-
-    if (stored === "1") {
-      setIsCollapsed(true);
-    }
-  }, []);
-
-  useEffect(() => {
     window.localStorage.setItem(COLLAPSED_STORAGE_KEY, isCollapsed ? "1" : "0");
   }, [isCollapsed]);
+
+  useEffect(() => {
+    const handleBeforeUnload = (event: BeforeUnloadEvent) => {
+      if (!isDirty) {
+        return;
+      }
+
+      event.preventDefault();
+      event.returnValue = "";
+    };
+
+    window.addEventListener("beforeunload", handleBeforeUnload);
+
+    return () => window.removeEventListener("beforeunload", handleBeforeUnload);
+  }, [isDirty]);
+
+  useEffect(() => {
+    const handleClickCapture = (event: MouseEvent) => {
+      if (!isDirty || event.defaultPrevented || event.button !== 0 || event.metaKey || event.ctrlKey || event.shiftKey || event.altKey) {
+        return;
+      }
+
+      const target = event.target as HTMLElement | null;
+      const anchor = target?.closest("a[href]") as HTMLAnchorElement | null;
+
+      if (!anchor) {
+        return;
+      }
+
+      const href = anchor.getAttribute("href") ?? "";
+
+      if (!href.startsWith("/")) {
+        return;
+      }
+
+      if (anchor.target === "_blank" || anchor.hasAttribute("download")) {
+        return;
+      }
+
+      event.preventDefault();
+      setPendingHref(href);
+      setIsLeaveModalOpen(true);
+    };
+
+    document.addEventListener("click", handleClickCapture, true);
+
+    return () => document.removeEventListener("click", handleClickCapture, true);
+  }, [isDirty]);
 
   const initials = useMemo(() => getInitials(user.fullName), [user.fullName]);
   const handleLogout = async () => {
@@ -72,6 +147,23 @@ export function InternalShell({ children, user }: InternalShellProps) {
     queryClient.setQueryData(internalSessionQueryKey, { user: null });
     router.replace("/internal/login?next=/internal");
     router.refresh();
+  };
+
+  const closeLeaveModal = () => {
+    setIsLeaveModalOpen(false);
+    setPendingHref(null);
+  };
+
+  const confirmLeave = () => {
+    if (pendingHref) {
+      setIsDirty(false);
+      setIsLeaveModalOpen(false);
+      router.push(pendingHref);
+      setPendingHref(null);
+      return;
+    }
+
+    closeLeaveModal();
   };
 
   const sidebar = (
@@ -180,10 +272,20 @@ export function InternalShell({ children, user }: InternalShellProps) {
   );
 
   return (
-    <main
-      className="min-h-dvh overflow-x-hidden bg-white text-slate-950 dark:bg-black dark:text-neutral-50"
-      style={{ ["--sidebar-width" as string]: isCollapsed ? "5rem" : "18rem" }}
-    >
+    <UnsavedChangesContext.Provider value={{ isDirty, setIsDirty }}>
+      <main
+        className="min-h-dvh overflow-x-hidden bg-white text-slate-950 dark:bg-black dark:text-neutral-50"
+        style={{ ["--sidebar-width" as string]: isCollapsed ? "5rem" : "18rem" }}
+      >
+        <ConfirmModal
+          confirmLabel="Rời trang"
+          description="Bạn đang có thay đổi chưa lưu. Nếu rời đi, dữ liệu vừa nhập có thể bị mất."
+          open={isLeaveModalOpen}
+          onCancel={closeLeaveModal}
+          onConfirm={confirmLeave}
+          title="Rời trang mà chưa lưu?"
+        />
+
       <div className="lg:hidden">
         {isMobileOpen ? (
           <button
@@ -239,6 +341,7 @@ export function InternalShell({ children, user }: InternalShellProps) {
           <div className="mx-auto w-full max-w-screen-2xl px-4 py-5 sm:px-6 lg:py-7">{children}</div>
         </section>
       </div>
-    </main>
+      </main>
+    </UnsavedChangesContext.Provider>
   );
 }

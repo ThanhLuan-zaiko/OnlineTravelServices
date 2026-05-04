@@ -46,5 +46,12 @@ export function internalErrorResponse(
     route: context?.route,
   });
 
-  return internalJson({ fields: [], message: fallbackMessage }, { status: 500 });
+  return internalJson(
+    {
+      details: error instanceof Error ? error.message : undefined,
+      fields: [],
+      message: fallbackMessage,
+    },
+    { status: 500 },
+  );
 }

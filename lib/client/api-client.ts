@@ -12,20 +12,33 @@ import type { HealthResponse } from "@/lib/shared/health";
 import type {
   InternalAccountProfileRequest,
   InternalAccountProfileResponse,
+  InternalDestination,
+  InternalDestinationMedia,
   InternalItineraryItem,
   InternalLoginRequest,
   InternalPromotion,
   InternalRevenueResponse,
   InternalSchedule,
+  InternalServiceProvider,
+  InternalServiceCatalog,
   InternalTour,
+  InternalTourMedia,
+  InternalTourVehicle,
+  InternalVehicleCatalogItem,
   ItineraryMutationRequest,
+  DestinationMutationRequest,
   PromotionMutationRequest,
   ScheduleMutationRequest,
+  ServiceProviderMutationRequest,
+  ServiceCatalogMutationRequest,
+  TourVehicleMutationRequest,
   TourMutationRequest,
+  VehicleCatalogMutationRequest,
 } from "@/lib/shared/internal";
 
 export type ApiError = {
   fields?: string[];
+  details?: string;
   message: string;
   status?: number;
 };
@@ -40,11 +53,13 @@ export const apiClient = axios.create({
 
 apiClient.interceptors.response.use(
   (response) => response,
-  (error: AxiosError<{ database?: { message?: string }; fields?: string[]; message?: string }>) => {
+  (error: AxiosError<{ database?: { message?: string }; details?: string; fields?: string[]; message?: string }>) => {
     const normalizedError: ApiError = {
+      details: error.response?.data?.details,
       fields: error.response?.data?.fields,
       message:
         error.response?.data?.database?.message ??
+        error.response?.data?.details ??
         error.response?.data?.message ??
         error.message ??
         "Request failed.",
@@ -139,6 +154,204 @@ export async function getInternalTours(status?: string) {
   return response.data;
 }
 
+export async function getInternalDestinations(status?: string) {
+  const response = await apiClient.get<{ destinations: InternalDestination[] }>("/internal/destinations", {
+    params: status ? { status } : undefined,
+  });
+
+  return response.data;
+}
+
+export async function createInternalDestination(input: DestinationMutationRequest) {
+  const response = await apiClient.post<{ destination: InternalDestination }>("/internal/destinations", input);
+
+  return response.data;
+}
+
+export async function updateInternalDestination(destinationId: string, input: DestinationMutationRequest) {
+  const response = await apiClient.patch<{ destination: InternalDestination }>(`/internal/destinations/${destinationId}`, input);
+
+  return response.data;
+}
+
+export async function archiveInternalDestination(destinationId: string) {
+  const response = await apiClient.delete<{ destination: InternalDestination }>(`/internal/destinations/${destinationId}`);
+
+  return response.data;
+}
+
+export async function getInternalDestinationMedia(destinationId: string) {
+  const response = await apiClient.get<{ media: InternalDestinationMedia[] }>(`/internal/destinations/${destinationId}/media`);
+
+  return response.data;
+}
+
+export async function uploadInternalDestinationMedia(
+  destinationId: string,
+  input: {
+    file: File;
+    isCover: boolean;
+    mediaType: string;
+    title?: string;
+  },
+) {
+  const formData = new FormData();
+
+  formData.append("file", input.file);
+  formData.append("isCover", input.isCover ? "1" : "0");
+  formData.append("mediaType", input.mediaType);
+  if (input.title) {
+    formData.append("title", input.title);
+  }
+
+  const response = await apiClient.post<{ media: InternalDestinationMedia }>(`/internal/destinations/${destinationId}/media`, formData, {
+    headers: {
+      "Content-Type": "multipart/form-data",
+    },
+  });
+
+  return response.data;
+}
+
+export async function deleteInternalDestinationMedia(destinationId: string, mediaId: string) {
+  const response = await apiClient.delete<{ media: InternalDestinationMedia }>(
+    `/internal/destinations/${destinationId}/media/${mediaId}`,
+  );
+
+  return response.data;
+}
+
+export async function setInternalDestinationMediaCover(destinationId: string, mediaId: string) {
+  const response = await apiClient.patch<{ media: InternalDestinationMedia }>(
+    `/internal/destinations/${destinationId}/media/${mediaId}/cover`,
+  );
+
+  return response.data;
+}
+
+export async function getInternalServices(destinationId: string) {
+  const response = await apiClient.get<{ services: InternalServiceCatalog[] }>("/internal/services", {
+    params: { destinationId },
+  });
+
+  return response.data;
+}
+
+export async function createInternalService(input: ServiceCatalogMutationRequest) {
+  const response = await apiClient.post<{ service: InternalServiceCatalog }>("/internal/services", input);
+
+  return response.data;
+}
+
+export async function updateInternalService(
+  destinationId: string,
+  serviceType: string,
+  serviceId: string,
+  input: ServiceCatalogMutationRequest,
+) {
+  const response = await apiClient.patch<{ service: InternalServiceCatalog }>(
+    `/internal/services/${destinationId}/${serviceType}/${serviceId}`,
+    input,
+  );
+
+  return response.data;
+}
+
+export async function deleteInternalService(destinationId: string, serviceType: string, serviceId: string) {
+  const response = await apiClient.delete<{ service: InternalServiceCatalog }>(
+    `/internal/services/${destinationId}/${serviceType}/${serviceId}`,
+  );
+
+  return response.data;
+}
+
+export async function getInternalServiceProviders(serviceType: string) {
+  const response = await apiClient.get<{ providers: InternalServiceProvider[] }>("/internal/service-providers", {
+    params: { serviceType },
+  });
+
+  return response.data;
+}
+
+export async function createInternalServiceProvider(input: ServiceProviderMutationRequest) {
+  const response = await apiClient.post<{ provider: InternalServiceProvider }>("/internal/service-providers", input);
+
+  return response.data;
+}
+
+export async function updateInternalServiceProvider(serviceType: string, providerId: string, input: ServiceProviderMutationRequest) {
+  const response = await apiClient.patch<{ provider: InternalServiceProvider }>(
+    `/internal/service-providers/${serviceType}/${providerId}`,
+    input,
+  );
+
+  return response.data;
+}
+
+export async function deleteInternalServiceProvider(serviceType: string, providerId: string) {
+  const response = await apiClient.delete<{ provider: InternalServiceProvider }>(
+    `/internal/service-providers/${serviceType}/${providerId}`,
+  );
+
+  return response.data;
+}
+
+export async function getInternalVehicleCatalog(status?: string) {
+  const response = await apiClient.get<{ catalog: InternalVehicleCatalogItem[] }>("/internal/vehicle-catalog", {
+    params: status ? { status } : undefined,
+  });
+
+  return response.data;
+}
+
+export async function createInternalVehicleCatalog(input: VehicleCatalogMutationRequest) {
+  const response = await apiClient.post<{ catalogItem: InternalVehicleCatalogItem }>("/internal/vehicle-catalog", input);
+
+  return response.data;
+}
+
+export async function updateInternalVehicleCatalog(vehicleCatalogId: string, input: VehicleCatalogMutationRequest) {
+  const response = await apiClient.patch<{ catalogItem: InternalVehicleCatalogItem }>(
+    `/internal/vehicle-catalog/${vehicleCatalogId}`,
+    input,
+  );
+
+  return response.data;
+}
+
+export async function deleteInternalVehicleCatalog(vehicleCatalogId: string) {
+  const response = await apiClient.delete<{ catalogItem: InternalVehicleCatalogItem }>(
+    `/internal/vehicle-catalog/${vehicleCatalogId}`,
+  );
+
+  return response.data;
+}
+
+export async function uploadInternalVehicleCatalogImage(vehicleCatalogId: string, file: File) {
+  const formData = new FormData();
+  formData.append("file", file);
+
+  const response = await apiClient.post<{ catalogItem: InternalVehicleCatalogItem }>(
+    `/internal/vehicle-catalog/${vehicleCatalogId}/image`,
+    formData,
+    {
+      headers: {
+        "Content-Type": "multipart/form-data",
+      },
+    },
+  );
+
+  return response.data;
+}
+
+export async function deleteInternalVehicleCatalogImage(vehicleCatalogId: string) {
+  const response = await apiClient.delete<{ catalogItem: InternalVehicleCatalogItem }>(
+    `/internal/vehicle-catalog/${vehicleCatalogId}/image`,
+  );
+
+  return response.data;
+}
+
 export async function createInternalTour(input: TourMutationRequest) {
   const response = await apiClient.post<{ tour: InternalTour }>("/internal/tours", input);
 
@@ -159,6 +372,75 @@ export async function updateInternalTour(tourId: string, input: TourMutationRequ
 
 export async function archiveInternalTour(tourId: string) {
   const response = await apiClient.delete<{ tour: InternalTour }>(`/internal/tours/${tourId}`);
+
+  return response.data;
+}
+
+export async function getInternalTourMedia(tourId: string) {
+  const response = await apiClient.get<{ media: InternalTourMedia[] }>(`/internal/tours/${tourId}/media`);
+
+  return response.data;
+}
+
+export async function uploadInternalTourMedia(
+  tourId: string,
+  input: {
+    file: File;
+    isCover: boolean;
+    mediaType: string;
+    title?: string;
+  },
+) {
+  const formData = new FormData();
+
+  formData.append("file", input.file);
+  formData.append("isCover", input.isCover ? "1" : "0");
+  formData.append("mediaType", input.mediaType);
+  if (input.title) {
+    formData.append("title", input.title);
+  }
+
+  const response = await apiClient.post<{ media: InternalTourMedia }>(`/internal/tours/${tourId}/media`, formData, {
+    headers: {
+      "Content-Type": "multipart/form-data",
+    },
+  });
+
+  return response.data;
+}
+
+export async function deleteInternalTourMedia(tourId: string, mediaId: string) {
+  const response = await apiClient.delete<{ media: InternalTourMedia }>(`/internal/tours/${tourId}/media/${mediaId}`);
+
+  return response.data;
+}
+
+export async function setInternalTourMediaCover(tourId: string, mediaId: string) {
+  const response = await apiClient.patch<{ media: InternalTourMedia }>(`/internal/tours/${tourId}/media/${mediaId}/cover`);
+
+  return response.data;
+}
+
+export async function getInternalTourVehicles(tourId: string) {
+  const response = await apiClient.get<{ vehicles: InternalTourVehicle[] }>(`/internal/tours/${tourId}/vehicles`);
+
+  return response.data;
+}
+
+export async function createInternalTourVehicle(tourId: string, input: TourVehicleMutationRequest) {
+  const response = await apiClient.post<{ vehicle: InternalTourVehicle }>(`/internal/tours/${tourId}/vehicles`, input);
+
+  return response.data;
+}
+
+export async function updateInternalTourVehicle(tourId: string, vehicleId: string, input: TourVehicleMutationRequest) {
+  const response = await apiClient.patch<{ vehicle: InternalTourVehicle }>(`/internal/tours/${tourId}/vehicles/${vehicleId}`, input);
+
+  return response.data;
+}
+
+export async function deleteInternalTourVehicle(tourId: string, vehicleId: string) {
+  const response = await apiClient.delete<{ vehicle: InternalTourVehicle }>(`/internal/tours/${tourId}/vehicles/${vehicleId}`);
 
   return response.data;
 }

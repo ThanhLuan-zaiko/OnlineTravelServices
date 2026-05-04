@@ -5,17 +5,23 @@ import Link from "next/link";
 import { useMemo, useState } from "react";
 import { FiArchive, FiEdit2, FiPlus, FiSave } from "react-icons/fi";
 
+import { ConfirmModal } from "@/components/ui/confirm-modal";
+import { SelectField } from "@/components/ui/select-field";
 import { useToast } from "@/components/ui/toast";
 import {
   archiveInternalTour,
   createInternalTour,
+  getInternalDestinations,
   getInternalTours,
+  getInternalVehicleCatalog,
   updateInternalTour,
   type ApiError,
 } from "@/lib/client/api-client";
 import {
   tourMutationSchema,
+  type InternalDestination,
   type InternalTour,
+  type InternalVehicleCatalogItem,
   type TourMutationRequest,
 } from "@/lib/shared/internal";
 
@@ -39,6 +45,11 @@ const initialForm: TourMutationRequest = {
   title: "",
   tourType: "package",
   vipOnly: false,
+  vehicleCapacity: 0,
+  vehicleCatalogId: "",
+  vehicleCatalogLabel: "",
+  vehicleModel: "",
+  vehicleType: "",
 };
 
 function money(value: string) {
@@ -67,7 +78,16 @@ export function TourManager() {
   const [form, setForm] = useState<TourMutationRequest>(initialForm);
   const [includedText, setIncludedText] = useState("");
   const [excludedText, setExcludedText] = useState("");
+  const destinationsQuery = useQuery({
+    queryKey: ["internal", "destination-options"] as const,
+    queryFn: () => getInternalDestinations(),
+  });
+  const vehicleCatalogQuery = useQuery({
+    queryKey: ["internal", "vehicle-catalog"] as const,
+    queryFn: () => getInternalVehicleCatalog(),
+  });
   const [formError, setFormError] = useState<string | null>(null);
+  const [pendingArchiveTourId, setPendingArchiveTourId] = useState<string | null>(null);
   const { showToast } = useToast();
   const queryKey = useMemo(() => ["internal", "tours", status] as const, [status]);
   const toursQuery = useQuery({
@@ -101,6 +121,7 @@ export function TourManager() {
     mutationFn: archiveInternalTour,
     onSuccess: async () => {
       await queryClient.invalidateQueries({ queryKey: ["internal", "tours"] });
+      setPendingArchiveTourId(null);
       showToast({
         message: "Tour đã chuyển sang archived.",
         title: "Đã lưu trữ",
@@ -109,6 +130,21 @@ export function TourManager() {
     },
   });
   const tours = toursQuery.data?.tours ?? [];
+  const destinations = destinationsQuery.data?.destinations ?? [];
+  const vehicleCatalog = vehicleCatalogQuery.data?.catalog ?? [];
+  const destinationOptions = destinations.map((destination: InternalDestination) => ({
+    label: `${destination.name} - ${destination.city}`,
+    value: destination.destinationId,
+  }));
+  const vehicleCatalogOptions = vehicleCatalog.map((option: InternalVehicleCatalogItem) => ({
+    label: option.label,
+    value: option.vehicleCatalogId,
+  }));
+  const statusOptions = [
+    { label: "draft", value: "draft" },
+    { label: "published", value: "published" },
+    { label: "archived", value: "archived" },
+  ];
 
   const startEdit = (tour: InternalTour) => {
     setEditingTour(tour);
@@ -130,6 +166,11 @@ export function TourManager() {
       title: tour.title,
       tourType: tour.tourType,
       vipOnly: tour.vipOnly,
+      vehicleCapacity: tour.vehicleCapacity,
+      vehicleCatalogId: tour.vehicleCatalogId,
+      vehicleCatalogLabel: tour.vehicleCatalogLabel,
+      vehicleModel: tour.vehicleModel,
+      vehicleType: tour.vehicleType,
     });
     setIncludedText(tour.includedServices.join("\n"));
     setExcludedText(tour.excludedServices.join("\n"));
@@ -189,6 +230,56 @@ export function TourManager() {
           </h3>
           <form className="mt-4 grid gap-4" onSubmit={handleSubmit}>
             <div className="grid gap-4 md:grid-cols-2">
+              <SelectField
+                className="md:col-span-2"
+                label="Chọn địa điểm từ danh mục"
+                name="tour-destination"
+                onValueChange={(value) => {
+                  const selected = destinations.find((destination: InternalDestination) => destination.destinationId === value);
+
+                  if (!selected) {
+                    return;
+                  }
+
+                  setForm((current) => ({
+                    ...current,
+                    destinationId: selected.destinationId,
+                    destinationName: selected.name,
+                  }));
+                }}
+                options={destinationOptions}
+                placeholder="Chọn địa điểm đã có"
+                value={form.destinationId}
+              />
+              <SelectField
+                className="md:col-span-2"
+                label="Chọn phương tiện từ danh mục"
+                name="tour-vehicle-catalog"
+                onValueChange={(value) => {
+                  const selectedVehicle = vehicleCatalog.find((item: InternalVehicleCatalogItem) => item.vehicleCatalogId === value);
+
+                  if (!selectedVehicle) {
+                    return;
+                  }
+
+                  setForm((current) => ({
+                    ...current,
+                    vehicleCapacity: selectedVehicle.vehicleCapacity,
+                    vehicleCatalogId: selectedVehicle.vehicleCatalogId,
+                    vehicleCatalogLabel: selectedVehicle.label,
+                    vehicleModel: selectedVehicle.vehicleModel,
+                    vehicleType: selectedVehicle.vehicleType,
+                  }));
+                }}
+                options={vehicleCatalogOptions}
+                placeholder="Chọn phương tiện"
+                value={form.vehicleCatalogId}
+              />
+              {vehicleCatalog.length === 0 ? (
+                <p className="md:col-span-2 text-sm text-amber-700 dark:text-amber-300">
+                  Chưa có phương tiện trong danh mục. Tạo một mục ở trang danh mục phương tiện trước.
+                </p>
+              ) : null}
               <label className="space-y-2">
                 <span className="text-sm font-semibold">Tên tour</span>
                 <input className="h-11 w-full rounded-xl border border-slate-200 bg-white px-3 text-sm dark:border-neutral-800 dark:bg-black" value={form.title} onChange={(event) => updateForm("title", event.target.value)} />
@@ -214,13 +305,29 @@ export function TourManager() {
                 <input className="h-11 w-full rounded-xl border border-slate-200 bg-white px-3 text-sm dark:border-neutral-800 dark:bg-black" value={form.tourType} onChange={(event) => updateForm("tourType", event.target.value)} />
               </label>
               <label className="space-y-2">
-                <span className="text-sm font-semibold">Trạng thái</span>
-                <select className="h-11 w-full rounded-xl border border-slate-200 bg-white px-3 text-sm dark:border-neutral-800 dark:bg-black" value={form.status} onChange={(event) => updateForm("status", event.target.value)}>
-                  <option value="draft">draft</option>
-                  <option value="published">published</option>
-                  <option value="archived">archived</option>
-                </select>
+                <span className="text-sm font-semibold">Loại phương tiện</span>
+                <input className="h-11 w-full rounded-xl border border-slate-200 bg-white px-3 text-sm dark:border-neutral-800 dark:bg-black" value={form.vehicleType} onChange={(event) => updateForm("vehicleType", event.target.value)} />
               </label>
+              <label className="space-y-2">
+                <span className="text-sm font-semibold">Tên phương tiện</span>
+                <input className="h-11 w-full rounded-xl border border-slate-200 bg-white px-3 text-sm dark:border-neutral-800 dark:bg-black" value={form.vehicleCatalogLabel} onChange={(event) => updateForm("vehicleCatalogLabel", event.target.value)} />
+              </label>
+              <label className="space-y-2">
+                <span className="text-sm font-semibold">Dòng xe</span>
+                <input className="h-11 w-full rounded-xl border border-slate-200 bg-white px-3 text-sm dark:border-neutral-800 dark:bg-black" value={form.vehicleModel} onChange={(event) => updateForm("vehicleModel", event.target.value)} />
+              </label>
+              <label className="space-y-2">
+                <span className="text-sm font-semibold">Số chỗ ngồi</span>
+                <input className="h-11 w-full rounded-xl border border-slate-200 bg-white px-3 text-sm dark:border-neutral-800 dark:bg-black" type="number" value={form.vehicleCapacity} onChange={(event) => updateForm("vehicleCapacity", Number(event.target.value))} />
+              </label>
+              <SelectField
+                label="Trạng thái"
+                name="tour-status"
+                onValueChange={(value) => updateForm("status", value)}
+                options={statusOptions}
+                placeholder="Chọn trạng thái"
+                value={form.status}
+              />
               <label className="space-y-2">
                 <span className="text-sm font-semibold">Giá cơ bản</span>
                 <input className="h-11 w-full rounded-xl border border-slate-200 bg-white px-3 text-sm dark:border-neutral-800 dark:bg-black" value={form.basePrice} onChange={(event) => updateForm("basePrice", event.target.value)} />
@@ -278,12 +385,16 @@ export function TourManager() {
         <InternalPanel className="p-4">
           <div className="mb-4 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
             <h3 className="text-base font-semibold text-slate-950 dark:text-neutral-50">Danh sách tour</h3>
-            <select className="h-10 rounded-xl border border-slate-200 bg-white px-3 text-sm font-semibold dark:border-neutral-800 dark:bg-black" value={status} onChange={(event) => setStatus(event.target.value)}>
-              <option value="">Tất cả trạng thái</option>
-              <option value="published">published</option>
-              <option value="draft">draft</option>
-              <option value="archived">archived</option>
-            </select>
+            <SelectField
+              buttonClassName="h-10"
+              className="min-w-[220px]"
+              label="Lọc trạng thái"
+              name="tour-status-filter"
+              onValueChange={setStatus}
+              options={statusOptions}
+              placeholder="Tất cả trạng thái"
+              value={status}
+            />
           </div>
           {tours.length === 0 ? (
             <EmptyState message={toursQuery.isLoading ? "Đang tải tour..." : "Chưa có tour phù hợp bộ lọc."} />
@@ -294,6 +405,7 @@ export function TourManager() {
                   <tr>
                     <th className="px-3 py-3">Tour</th>
                     <th className="px-3 py-3">Điểm đến</th>
+                    <th className="px-3 py-3">Phương tiện</th>
                     <th className="px-3 py-3">Giá</th>
                     <th className="px-3 py-3">Trạng thái</th>
                     <th className="px-3 py-3">Cập nhật</th>
@@ -310,6 +422,12 @@ export function TourManager() {
                         <p className="mt-1 text-xs text-slate-500">{tour.slug}</p>
                       </td>
                       <td className="px-3 py-3 text-slate-600 dark:text-neutral-400">{tour.destinationName}</td>
+                      <td className="px-3 py-3 text-slate-600 dark:text-neutral-400">
+                        <p className="font-medium text-slate-900 dark:text-neutral-100">{tour.vehicleCatalogLabel}</p>
+                        <p className="text-xs text-slate-500 dark:text-neutral-400">{tour.vehicleType}</p>
+                        <p className="text-xs text-slate-500 dark:text-neutral-400">{tour.vehicleModel}</p>
+                        <p className="text-xs text-slate-500 dark:text-neutral-400">{tour.vehicleCapacity} chỗ</p>
+                      </td>
                       <td className="px-3 py-3 text-slate-600 dark:text-neutral-400">{money(tour.basePrice)} {tour.currency}</td>
                       <td className="px-3 py-3"><StatusPill value={tour.status} /></td>
                       <td className="px-3 py-3 text-slate-600 dark:text-neutral-400">{new Date(tour.updatedAt).toLocaleDateString("vi-VN")}</td>
@@ -318,7 +436,7 @@ export function TourManager() {
                           <button className="flex h-9 w-9 items-center justify-center rounded-lg border border-slate-200 text-slate-700 hover:bg-slate-100 dark:border-neutral-800 dark:text-neutral-200 dark:hover:bg-neutral-900" onClick={() => startEdit(tour)} type="button" aria-label="Sửa tour">
                             <FiEdit2 size={16} />
                           </button>
-                          <button className="flex h-9 w-9 items-center justify-center rounded-lg border border-slate-200 text-slate-700 hover:bg-slate-100 dark:border-neutral-800 dark:text-neutral-200 dark:hover:bg-neutral-900" disabled={archiveMutation.isPending || tour.status === "archived"} onClick={() => archiveMutation.mutate(tour.tourId)} type="button" aria-label="Lưu trữ tour">
+                          <button className="flex h-9 w-9 items-center justify-center rounded-lg border border-slate-200 text-slate-700 hover:bg-slate-100 dark:border-neutral-800 dark:text-neutral-200 dark:hover:bg-neutral-900" disabled={archiveMutation.isPending || tour.status === "archived"} onClick={() => setPendingArchiveTourId(tour.tourId)} type="button" aria-label="Lưu trữ tour">
                             <FiArchive size={16} />
                           </button>
                         </div>
@@ -331,6 +449,19 @@ export function TourManager() {
           )}
         </InternalPanel>
       </div>
+
+      <ConfirmModal
+        confirmLabel="Lưu trữ tour"
+        description="Tour sẽ chuyển sang archived và không còn xuất hiện trong luồng vận hành chính."
+        open={pendingArchiveTourId !== null}
+        onCancel={() => setPendingArchiveTourId(null)}
+        onConfirm={() => {
+          if (pendingArchiveTourId) {
+            archiveMutation.mutate(pendingArchiveTourId);
+          }
+        }}
+        title="Lưu trữ tour?"
+      />
     </div>
   );
 }

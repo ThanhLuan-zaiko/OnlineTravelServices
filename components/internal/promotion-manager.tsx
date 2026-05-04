@@ -4,6 +4,8 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useMemo, useState } from "react";
 import { FiArchive, FiEdit2, FiPlus, FiSave } from "react-icons/fi";
 
+import { ConfirmModal } from "@/components/ui/confirm-modal";
+import { SelectField } from "@/components/ui/select-field";
 import { useToast } from "@/components/ui/toast";
 import {
   archiveInternalPromotion,
@@ -46,11 +48,23 @@ export function PromotionManager() {
   const [editing, setEditing] = useState<InternalPromotion | null>(null);
   const [form, setForm] = useState<PromotionMutationRequest>(initialForm);
   const [formError, setFormError] = useState<string | null>(null);
+  const [pendingArchiveId, setPendingArchiveId] = useState<string | null>(null);
   const queryKey = useMemo(() => ["internal", "promotions", status] as const, [status]);
   const promotionsQuery = useQuery({
     queryKey,
     queryFn: () => getInternalPromotions(status || undefined),
   });
+  const promotionStatusOptions = [
+    { label: "draft", value: "draft" },
+    { label: "scheduled", value: "scheduled" },
+    { label: "published", value: "published" },
+    { label: "expired", value: "expired" },
+    { label: "archived", value: "archived" },
+  ];
+  const discountTypeOptions = [
+    { label: "percent", value: "percent" },
+    { label: "amount", value: "amount" },
+  ];
   const saveMutation = useMutation({
     mutationFn: (input: PromotionMutationRequest) =>
       editing ? updateInternalPromotion(editing.promotionId, input) : createInternalPromotion(input),
@@ -64,7 +78,10 @@ export function PromotionManager() {
   });
   const archiveMutation = useMutation({
     mutationFn: archiveInternalPromotion,
-    onSuccess: () => queryClient.invalidateQueries({ queryKey: ["internal", "promotions"] }),
+    onSuccess: async () => {
+      await queryClient.invalidateQueries({ queryKey: ["internal", "promotions"] });
+      setPendingArchiveId(null);
+    },
   });
   const promotions = promotionsQuery.data?.promotions ?? [];
 
@@ -133,18 +150,23 @@ export function PromotionManager() {
             <div className="grid gap-4 md:grid-cols-2">
               <input className="h-11 rounded-xl border border-slate-200 bg-white px-3 text-sm dark:border-neutral-800 dark:bg-black" placeholder="Mã" value={form.code} onChange={(event) => updateForm("code", event.target.value)} />
               <input className="h-11 rounded-xl border border-slate-200 bg-white px-3 text-sm dark:border-neutral-800 dark:bg-black" placeholder="Tên" value={form.title} onChange={(event) => updateForm("title", event.target.value)} />
-              <select className="h-11 rounded-xl border border-slate-200 bg-white px-3 text-sm dark:border-neutral-800 dark:bg-black" value={form.status} onChange={(event) => updateForm("status", event.target.value)}>
-                <option value="draft">draft</option>
-                <option value="scheduled">scheduled</option>
-                <option value="published">published</option>
-                <option value="expired">expired</option>
-                <option value="archived">archived</option>
-              </select>
+              <SelectField
+                label="Trạng thái"
+                name="promotion-status"
+                onValueChange={(value) => updateForm("status", value)}
+                options={promotionStatusOptions}
+                placeholder="Chọn trạng thái"
+                value={form.status}
+              />
               <input className="h-11 rounded-xl border border-slate-200 bg-white px-3 text-sm dark:border-neutral-800 dark:bg-black" placeholder="Hạng khách" value={form.customerTier} onChange={(event) => updateForm("customerTier", event.target.value)} />
-              <select className="h-11 rounded-xl border border-slate-200 bg-white px-3 text-sm dark:border-neutral-800 dark:bg-black" value={form.discountType} onChange={(event) => updateForm("discountType", event.target.value)}>
-                <option value="percent">percent</option>
-                <option value="amount">amount</option>
-              </select>
+              <SelectField
+                label="Loại giảm"
+                name="promotion-discount-type"
+                onValueChange={(value) => updateForm("discountType", value)}
+                options={discountTypeOptions}
+                placeholder="Chọn loại giảm"
+                value={form.discountType}
+              />
               <input className="h-11 rounded-xl border border-slate-200 bg-white px-3 text-sm dark:border-neutral-800 dark:bg-black" placeholder="Giá trị" value={form.discountValue} onChange={(event) => updateForm("discountValue", event.target.value)} />
               <input className="h-11 rounded-xl border border-slate-200 bg-white px-3 text-sm dark:border-neutral-800 dark:bg-black" placeholder="Giảm tối đa" value={form.maxDiscountAmount ?? ""} onChange={(event) => updateForm("maxDiscountAmount", event.target.value || null)} />
               <input className="h-11 rounded-xl border border-slate-200 bg-white px-3 text-sm dark:border-neutral-800 dark:bg-black" placeholder="Loại chương trình" value={form.promotionType} onChange={(event) => updateForm("promotionType", event.target.value)} />
@@ -164,14 +186,16 @@ export function PromotionManager() {
         <InternalPanel className="p-4">
           <div className="mb-4 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
             <h3 className="text-base font-semibold">Danh sách khuyến mãi</h3>
-            <select className="h-10 rounded-xl border border-slate-200 bg-white px-3 text-sm font-semibold dark:border-neutral-800 dark:bg-black" value={status} onChange={(event) => setStatus(event.target.value)}>
-              <option value="">Tất cả trạng thái</option>
-              <option value="published">published</option>
-              <option value="scheduled">scheduled</option>
-              <option value="draft">draft</option>
-              <option value="expired">expired</option>
-              <option value="archived">archived</option>
-            </select>
+            <SelectField
+              buttonClassName="h-10"
+              className="min-w-[220px]"
+              label="Lọc trạng thái"
+              name="promotion-status-filter"
+              onValueChange={setStatus}
+              options={promotionStatusOptions}
+              placeholder="Tất cả trạng thái"
+              value={status}
+            />
           </div>
           {promotions.length === 0 ? (
             <EmptyState message={promotionsQuery.isLoading ? "Đang tải khuyến mãi..." : "Chưa có khuyến mãi phù hợp."} />
@@ -201,7 +225,7 @@ export function PromotionManager() {
                           <button className="flex h-9 w-9 items-center justify-center rounded-lg border border-slate-200 dark:border-neutral-800" onClick={() => startEdit(promotion)} type="button" aria-label="Sửa khuyến mãi">
                             <FiEdit2 size={16} />
                           </button>
-                          <button className="flex h-9 w-9 items-center justify-center rounded-lg border border-slate-200 dark:border-neutral-800" disabled={archiveMutation.isPending || promotion.status === "archived"} onClick={() => archiveMutation.mutate(promotion.promotionId)} type="button" aria-label="Lưu trữ khuyến mãi">
+                          <button className="flex h-9 w-9 items-center justify-center rounded-lg border border-slate-200 dark:border-neutral-800" disabled={archiveMutation.isPending || promotion.status === "archived"} onClick={() => setPendingArchiveId(promotion.promotionId)} type="button" aria-label="Lưu trữ khuyến mãi">
                             <FiArchive size={16} />
                           </button>
                         </div>
@@ -214,6 +238,19 @@ export function PromotionManager() {
           )}
         </InternalPanel>
       </div>
+
+      <ConfirmModal
+        confirmLabel="Lưu trữ"
+        description="Khuyến mãi sẽ chuyển sang trạng thái archived và không còn áp dụng trong luồng hiện tại."
+        open={pendingArchiveId !== null}
+        onCancel={() => setPendingArchiveId(null)}
+        onConfirm={() => {
+          if (pendingArchiveId) {
+            archiveMutation.mutate(pendingArchiveId);
+          }
+        }}
+        title="Lưu trữ khuyến mãi?"
+      />
     </div>
   );
 }
