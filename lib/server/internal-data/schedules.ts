@@ -21,7 +21,7 @@ export async function listSchedulesByTour(tourId: string) {
 }
 
 export async function createSchedule(tourId: string, input: ScheduleMutationRequest) {
-  const scheduleId = uuidv7();
+  const scheduleId = String(uuidv7());
 
   await executeQuery(
     `INSERT INTO tour_schedules_by_tour

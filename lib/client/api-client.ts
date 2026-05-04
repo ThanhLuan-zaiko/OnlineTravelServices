@@ -10,6 +10,8 @@ import type {
 } from "@/lib/shared/auth";
 import type { HealthResponse } from "@/lib/shared/health";
 import type {
+  InternalAccountProfileRequest,
+  InternalAccountProfileResponse,
   InternalItineraryItem,
   InternalLoginRequest,
   InternalPromotion,
@@ -113,6 +115,18 @@ export async function logoutInternalAccount() {
 
 export async function getCurrentInternalAccount() {
   const response = await apiClient.get<AuthResponse>("/internal/auth/me");
+
+  return response.data;
+}
+
+export async function getCurrentInternalAccountProfile() {
+  const response = await apiClient.get<InternalAccountProfileResponse>("/internal/account");
+
+  return response.data;
+}
+
+export async function updateInternalAccountProfile(input: InternalAccountProfileRequest) {
+  const response = await apiClient.patch<InternalAccountProfileResponse>("/internal/account", input);
 
   return response.data;
 }

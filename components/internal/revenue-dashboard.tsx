@@ -29,10 +29,34 @@ export function RevenueDashboard() {
   const revenue = revenueQuery.data?.revenue;
   const summary = revenue?.summary;
   const cards = [
-    { icon: FiTrendingUp, label: "Tổng doanh thu", value: money(summary?.totalRevenue ?? "0") },
-    { icon: FiBarChart2, label: "Doanh thu ròng", value: money(summary?.netRevenue ?? "0") },
-    { icon: FiCreditCard, label: "Thanh toán", value: summary?.paymentCount ?? 0 },
-    { icon: FiRefreshCw, label: "Hoàn tiền", value: money(summary?.refundAmount ?? "0") },
+    {
+      icon: FiTrendingUp,
+      label: "Tổng doanh thu",
+      tone:
+        "border-emerald-200 bg-emerald-50 text-emerald-700 hover:border-emerald-300 dark:border-emerald-950 dark:bg-emerald-950/30 dark:text-emerald-300",
+      value: money(summary?.totalRevenue ?? "0"),
+    },
+    {
+      icon: FiBarChart2,
+      label: "Doanh thu ròng",
+      tone:
+        "border-sky-200 bg-sky-50 text-sky-700 hover:border-sky-300 dark:border-sky-950 dark:bg-sky-950/30 dark:text-sky-300",
+      value: money(summary?.netRevenue ?? "0"),
+    },
+    {
+      icon: FiCreditCard,
+      label: "Thanh toán",
+      tone:
+        "border-amber-200 bg-amber-50 text-amber-700 hover:border-amber-300 dark:border-amber-950 dark:bg-amber-950/30 dark:text-amber-300",
+      value: summary?.paymentCount ?? 0,
+    },
+    {
+      icon: FiRefreshCw,
+      label: "Hoàn tiền",
+      tone:
+        "border-rose-200 bg-rose-50 text-rose-700 hover:border-rose-300 dark:border-rose-950 dark:bg-rose-950/30 dark:text-rose-300",
+      value: money(summary?.refundAmount ?? "0"),
+    },
   ];
 
   return (
@@ -60,12 +84,12 @@ export function RevenueDashboard() {
           const Icon = card.icon;
 
           return (
-            <InternalPanel className="p-4" key={card.label}>
-              <span className="flex h-10 w-10 items-center justify-center rounded-xl bg-slate-100 text-slate-700 dark:bg-neutral-900 dark:text-neutral-200">
+            <InternalPanel className={`p-4 ${card.tone}`} key={card.label}>
+              <span className="flex h-11 w-11 items-center justify-center rounded-2xl bg-white/80 text-current transition-transform duration-300 dark:bg-black/20">
                 <Icon size={18} />
               </span>
-              <p className="mt-4 text-2xl font-semibold">{card.value}</p>
-              <p className="mt-1 text-sm font-medium text-slate-500 dark:text-neutral-400">{card.label}</p>
+              <p className="mt-4 text-2xl font-semibold tracking-tight text-current">{card.value}</p>
+              <p className="mt-1 text-sm font-medium text-current/80">{card.label}</p>
             </InternalPanel>
           );
         })}

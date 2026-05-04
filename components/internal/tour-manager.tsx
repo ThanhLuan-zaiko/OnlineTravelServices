@@ -165,7 +165,7 @@ export function TourManager() {
       <InternalPageHeader
         action={
           <button
-            className="inline-flex h-11 items-center justify-center gap-2 rounded-xl bg-slate-950 px-4 text-sm font-semibold text-white transition hover:bg-slate-800 dark:bg-white dark:text-black dark:hover:bg-neutral-200"
+            className="inline-flex h-11 items-center justify-center gap-2 rounded-xl bg-gradient-to-r from-sky-600 via-cyan-600 to-emerald-600 px-4 text-sm font-semibold text-white transition hover:-translate-y-0.5 dark:from-sky-400 dark:via-cyan-400 dark:to-emerald-400 dark:text-slate-950"
             onClick={() => {
               setEditingTour(null);
               setForm(initialForm);
@@ -267,7 +267,7 @@ export function TourManager() {
               </label>
             </div>
             {formError ? <p className="text-sm font-semibold text-rose-600 dark:text-rose-300">{formError}</p> : null}
-            <button className="inline-flex h-11 items-center justify-center gap-2 rounded-xl bg-sky-600 px-4 text-sm font-semibold text-white transition hover:bg-sky-700 disabled:bg-slate-300" disabled={saveMutation.isPending} type="submit">
+            <button className="inline-flex h-11 items-center justify-center gap-2 rounded-xl bg-gradient-to-r from-sky-600 via-cyan-600 to-emerald-600 px-4 text-sm font-semibold text-white transition hover:-translate-y-0.5 disabled:cursor-not-allowed disabled:opacity-70" disabled={saveMutation.isPending} type="submit">
               <FiSave size={17} />
               {saveMutation.isPending ? "Đang lưu" : "Lưu tour"}
             </button>

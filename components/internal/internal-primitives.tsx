@@ -10,8 +10,8 @@ export function InternalPageHeader({
   title: string;
 }) {
   return (
-    <div className="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
-      <div>
+    <div className="flex flex-col gap-3 rounded-3xl border border-slate-200/80 bg-white/70 p-4 backdrop-blur transition-all duration-300 hover:-translate-y-0.5 dark:border-neutral-800/80 dark:bg-black/40 sm:flex-row sm:items-end sm:justify-between sm:p-5">
+      <div className="border-l-4 border-sky-500 pl-4">
         <h2 className="text-2xl font-semibold tracking-normal text-slate-950 dark:text-neutral-50">{title}</h2>
         <p className="mt-2 max-w-3xl text-sm leading-6 text-slate-600 dark:text-neutral-400">{description}</p>
       </div>
@@ -22,7 +22,9 @@ export function InternalPageHeader({
 
 export function InternalPanel({ children, className = "" }: { children: ReactNode; className?: string }) {
   return (
-    <section className={`rounded-xl border border-slate-200 bg-white dark:border-neutral-900 dark:bg-black ${className}`}>
+    <section
+      className={`rounded-2xl border border-slate-200 bg-white/90 transition-all duration-300 hover:-translate-y-0.5 dark:border-neutral-900 dark:bg-black/90 ${className}`}
+    >
       {children}
     </section>
   );
@@ -37,7 +39,7 @@ export function StatusPill({ value }: { value: string }) {
         : "border-slate-200 bg-slate-50 text-slate-600 dark:border-neutral-800 dark:bg-neutral-900 dark:text-neutral-300";
 
   return (
-    <span className={`inline-flex h-7 items-center rounded-full border px-2.5 text-xs font-semibold ${tone}`}>
+    <span className={`inline-flex h-7 items-center rounded-full border px-2.5 text-xs font-semibold uppercase tracking-wide ${tone}`}>
       {value}
     </span>
   );
@@ -45,7 +47,7 @@ export function StatusPill({ value }: { value: string }) {
 
 export function EmptyState({ message }: { message: string }) {
   return (
-    <div className="flex min-h-48 items-center justify-center rounded-xl border border-dashed border-slate-300 p-6 text-center text-sm font-medium text-slate-500 dark:border-neutral-800 dark:text-neutral-400">
+    <div className="flex min-h-48 items-center justify-center rounded-2xl border border-dashed border-slate-300 bg-slate-50/60 p-6 text-center text-sm font-medium text-slate-500 dark:border-neutral-800 dark:bg-neutral-950/40 dark:text-neutral-400">
       {message}
     </div>
   );

@@ -65,7 +65,7 @@ function throwDuplicateAccount(fields: AuthErrorField[]) {
 }
 
 async function createSession(userId: string, request: Request) {
-  const sessionId = uuidv7();
+  const sessionId = String(uuidv7());
   const token = randomBytes(32).toString("base64url");
   const now = new Date();
   const expiresAt = addDays(now, SESSION_TTL_DAYS);
@@ -120,7 +120,7 @@ export async function registerCustomer(input: RegisterRequest, request: Request)
   }
 
   const now = new Date();
-  const userId = uuidv7();
+  const userId = String(uuidv7());
   const passwordHash = await hash(input.password, passwordHashOptions);
 
   if (

@@ -71,13 +71,13 @@ export function ThemeToggle() {
   const isDarkSelected = theme === "dark";
 
   return (
-    <div className="flex items-center rounded-xl border border-slate-200 bg-white p-1 dark:border-neutral-800 dark:bg-black">
+    <div className="inline-flex items-center overflow-hidden rounded-2xl bg-transparent p-0">
       <button
         aria-label="Dùng giao diện sáng"
-        className={`flex h-10 w-10 items-center justify-center rounded-lg transition ${
+        className={`flex h-10 w-10 items-center justify-center rounded-xl transition ${
           isLightSelected
             ? "bg-amber-100 text-amber-700 dark:bg-amber-300 dark:text-amber-950"
-            : "text-slate-500 hover:bg-slate-100 hover:text-slate-950 dark:text-neutral-400 dark:hover:bg-neutral-800 dark:hover:text-neutral-50"
+            : "text-slate-500 hover:text-slate-950 dark:text-neutral-400 dark:hover:text-neutral-50"
         }`}
         onClick={() => setTheme("light")}
         type="button"
@@ -86,10 +86,10 @@ export function ThemeToggle() {
       </button>
       <button
         aria-label="Dùng giao diện tối"
-        className={`flex h-10 w-10 items-center justify-center rounded-lg transition ${
+        className={`flex h-10 w-10 items-center justify-center rounded-xl transition ${
           isDarkSelected
             ? "bg-sky-100 text-sky-700 dark:bg-sky-400 dark:text-sky-950"
-            : "text-slate-500 hover:bg-slate-100 hover:text-slate-950 dark:text-neutral-400 dark:hover:bg-neutral-800 dark:hover:text-neutral-50"
+            : "text-slate-500 hover:text-slate-950 dark:text-neutral-400 dark:hover:text-neutral-50"
         }`}
         onClick={() => setTheme("dark")}
         type="button"

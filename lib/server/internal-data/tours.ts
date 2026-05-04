@@ -97,7 +97,7 @@ export async function findInternalTour(tourId: string) {
 }
 
 export async function createInternalTour(input: TourMutationRequest, actorUserId: string) {
-  const tourId = uuidv7();
+  const tourId = String(uuidv7());
   const now = new Date();
   const publishedAt = input.status === "published" ? now : null;
 

@@ -85,7 +85,7 @@ export async function findInternalPromotion(promotionId: string) {
 }
 
 export async function createInternalPromotion(input: PromotionMutationRequest, actorUserId: string) {
-  const promotionId = uuidv7();
+  const promotionId = String(uuidv7());
 
   await executeQuery(
     `INSERT INTO promotions_by_id

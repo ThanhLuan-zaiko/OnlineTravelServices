@@ -26,6 +26,76 @@ export const internalLoginRequestSchema = z.object({
   password: z.string().min(1, "Vui lòng nhập mật khẩu."),
 });
 
+const internalPasswordSchema = z
+  .string()
+  .min(12, "Mật khẩu cần ít nhất 12 ký tự.")
+  .max(128, "Mật khẩu quá dài.")
+  .regex(/[a-z]/, "Mật khẩu cần có ít nhất 1 chữ thường.")
+  .regex(/[A-Z]/, "Mật khẩu cần có ít nhất 1 chữ hoa.")
+  .regex(/[0-9]/, "Mật khẩu cần có ít nhất 1 chữ số.")
+  .regex(/[^A-Za-z0-9]/, "Mật khẩu cần có ít nhất 1 ký tự đặc biệt.");
+
+export const internalAccountProfileRequestSchema = z
+  .object({
+    fullName: z.string().trim().min(2, "Vui lòng nhập họ tên."),
+    phone: z.string().trim().min(8, "Vui lòng nhập số điện thoại."),
+    currentPassword: z.string().optional(),
+    newPassword: z.string().optional(),
+    confirmNewPassword: z.string().optional(),
+  })
+  .superRefine((value, context) => {
+    const wantsPasswordChange =
+      Boolean(value.currentPassword) ||
+      Boolean(value.newPassword) ||
+      Boolean(value.confirmNewPassword);
+
+    if (!wantsPasswordChange) {
+      return;
+    }
+
+    if (!value.currentPassword) {
+      context.addIssue({
+        code: "custom",
+        message: "Vui lòng nhập mật khẩu hiện tại.",
+        path: ["currentPassword"],
+      });
+    }
+
+    const parsedNewPassword = internalPasswordSchema.safeParse(value.newPassword ?? "");
+
+    if (!parsedNewPassword.success) {
+      for (const issue of parsedNewPassword.error.issues) {
+        context.addIssue({
+          code: "custom",
+          message: issue.message,
+          path: ["newPassword"],
+        });
+      }
+    }
+
+    if (!value.confirmNewPassword) {
+      context.addIssue({
+        code: "custom",
+        message: "Vui lòng xác nhận mật khẩu mới.",
+        path: ["confirmNewPassword"],
+      });
+    } else if (value.newPassword !== value.confirmNewPassword) {
+      context.addIssue({
+        code: "custom",
+        message: "Mật khẩu xác nhận không khớp.",
+        path: ["confirmNewPassword"],
+      });
+    }
+
+    if (value.currentPassword && value.newPassword && value.currentPassword === value.newPassword) {
+      context.addIssue({
+        code: "custom",
+        message: "Mật khẩu mới không được trùng mật khẩu hiện tại.",
+        path: ["newPassword"],
+      });
+    }
+  });
+
 export const tourStatusSchema = z.enum(["archived", "draft", "published"]);
 export const promotionStatusSchema = z.enum(["archived", "draft", "expired", "published", "scheduled"]);
 export const scheduleStatusSchema = z.enum(["cancelled", "closed", "open"]);
@@ -97,6 +167,7 @@ export const promotionMutationSchema = z.object({
 });
 
 export type InternalLoginRequest = z.infer<typeof internalLoginRequestSchema>;
+export type InternalAccountProfileRequest = z.infer<typeof internalAccountProfileRequestSchema>;
 export type TourMutationRequest = z.infer<typeof tourMutationSchema>;
 export type ScheduleMutationRequest = z.infer<typeof scheduleMutationSchema>;
 export type ItineraryMutationRequest = z.infer<typeof itineraryMutationSchema>;
@@ -164,4 +235,23 @@ export type InternalRevenueResponse = {
     title: string;
     tourId: string;
   }>;
+};
+
+export type InternalAccountProfile = {
+  userId: string;
+  email: string;
+  fullName: string;
+  role: "administrative_staff";
+  customerTier: string;
+  vipTier: string;
+  phone: string;
+  department: string;
+  staffLevel: string;
+  hiredAt: string;
+  lastActivityAt: string | null;
+  permissions: string[];
+};
+
+export type InternalAccountProfileResponse = {
+  profile: InternalAccountProfile;
 };

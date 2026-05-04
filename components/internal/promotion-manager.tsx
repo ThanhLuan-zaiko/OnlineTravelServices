@@ -111,7 +111,7 @@ export function PromotionManager() {
       <InternalPageHeader
         action={
           <button
-            className="inline-flex h-11 items-center gap-2 rounded-xl bg-slate-950 px-4 text-sm font-semibold text-white dark:bg-white dark:text-black"
+            className="inline-flex h-11 items-center gap-2 rounded-xl bg-gradient-to-r from-violet-600 via-fuchsia-600 to-rose-600 px-4 text-sm font-semibold text-white transition hover:-translate-y-0.5 dark:from-violet-400 dark:via-fuchsia-400 dark:to-rose-400 dark:text-slate-950"
             onClick={() => {
               setEditing(null);
               setForm(initialForm);
@@ -154,7 +154,7 @@ export function PromotionManager() {
             </div>
             <textarea className="min-h-24 rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm dark:border-neutral-800 dark:bg-black" placeholder="Mô tả" value={form.description ?? ""} onChange={(event) => updateForm("description", event.target.value)} />
             {formError ? <p className="text-sm font-semibold text-rose-600 dark:text-rose-300">{formError}</p> : null}
-            <button className="inline-flex h-11 items-center justify-center gap-2 rounded-xl bg-sky-600 px-4 text-sm font-semibold text-white" disabled={saveMutation.isPending} type="submit">
+            <button className="inline-flex h-11 items-center justify-center gap-2 rounded-xl bg-gradient-to-r from-sky-600 via-cyan-600 to-emerald-600 px-4 text-sm font-semibold text-white transition hover:-translate-y-0.5 disabled:cursor-not-allowed disabled:opacity-70" disabled={saveMutation.isPending} type="submit">
               <FiSave size={17} />
               Lưu khuyến mãi
             </button>

@@ -28,12 +28,12 @@ export function ScheduleOverview() {
           <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-3">
             {tours.map((tour) => (
               <Link
-                className="rounded-xl border border-slate-200 p-4 transition hover:border-sky-300 hover:bg-sky-50/50 dark:border-neutral-800 dark:hover:border-sky-900 dark:hover:bg-sky-950/20"
+                className="group rounded-2xl border border-slate-200 bg-white/80 p-4 transition-all duration-300 hover:-translate-y-1 hover:border-sky-300 hover:bg-sky-50/60 dark:border-neutral-800 dark:bg-black/40 dark:hover:border-sky-900 dark:hover:bg-sky-950/20"
                 href={`/internal/tours/${tour.tourId}`}
                 key={tour.tourId}
               >
                 <div className="flex items-start justify-between gap-3">
-                  <span className="flex h-10 w-10 items-center justify-center rounded-xl bg-slate-100 text-slate-700 dark:bg-neutral-900 dark:text-neutral-200">
+                  <span className="flex h-11 w-11 items-center justify-center rounded-2xl bg-gradient-to-br from-sky-500 to-cyan-500 text-white transition group-hover:scale-105">
                     <FiCalendar size={18} />
                   </span>
                   <StatusPill value={tour.status} />
