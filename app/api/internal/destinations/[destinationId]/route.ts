@@ -1,6 +1,9 @@
+import { unlink } from "node:fs/promises";
+import path from "node:path";
+
 import { requireAdministrativeStaff } from "@/lib/server/internal-auth";
 import { internalErrorResponse, internalJson } from "@/lib/server/internal-api";
-import { archiveInternalDestination, findInternalDestination, updateInternalDestination } from "@/lib/server/internal-data";
+import { archiveInternalDestination, findInternalDestination, hardDeleteInternalDestination, updateInternalDestination } from "@/lib/server/internal-data";
 import { assertSameOriginRequest } from "@/lib/server/request-security";
 import { destinationMutationSchema } from "@/lib/shared/internal";
 
@@ -12,6 +15,21 @@ type RouteContext = {
     destinationId: string;
   }>;
 };
+
+async function removeStoredFile(publicUrl: string | null | undefined) {
+  if (!publicUrl) {
+    return;
+  }
+
+  const relativePath = publicUrl.replace(/^\/+/, "");
+  const fullPath = path.join(process.cwd(), "public", relativePath);
+  const thumbPath = fullPath.replace(/-4k\.webp$/, "-thumb.webp");
+
+  await Promise.all([
+    unlink(fullPath).catch(() => undefined),
+    unlink(thumbPath).catch(() => undefined),
+  ]);
+}
 
 export async function GET(request: Request, context: RouteContext) {
   try {
@@ -56,6 +74,29 @@ export async function DELETE(request: Request, context: RouteContext) {
     assertSameOriginRequest(request);
     const user = await requireAdministrativeStaff(request);
     const { destinationId } = await context.params;
+    const { searchParams } = new URL(request.url);
+    const mode = searchParams.get("mode");
+
+    if (mode === "hard") {
+      const deleted = await hardDeleteInternalDestination(destinationId);
+
+      if (!deleted) {
+        return internalJson({ message: "Không tìm thấy địa điểm." }, { status: 404 });
+      }
+
+      await Promise.all(
+        deleted.media.flatMap((media) => [
+          removeStoredFile(media.mediaUrl),
+          removeStoredFile(media.thumbnailUrl),
+        ]),
+      );
+
+      return internalJson({
+        destination: deleted.destination,
+        message: "Địa điểm đã bị xóa vĩnh viễn.",
+      });
+    }
+
     const destination = await archiveInternalDestination(destinationId, user.userId);
 
     if (!destination) {

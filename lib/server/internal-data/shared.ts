@@ -83,7 +83,7 @@ export type DestinationStatusRow = {
   name: string;
   region: string;
   status: "archived" | "draft" | "published";
-  updated_at: Date;
+  updated_at: Date | types.TimeUuid | string;
 };
 
 export type DestinationMediaRow = {

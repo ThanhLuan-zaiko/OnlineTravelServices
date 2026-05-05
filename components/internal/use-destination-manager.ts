@@ -9,8 +9,10 @@ import {
   createInternalDestination as createInternalDestinationApi,
   deleteInternalDestinationMedia,
   getInternalDestinationMedia,
-  getInternalDestinations,
+  getInternalDestinationPage,
+  hardDeleteInternalDestination,
   setInternalDestinationMediaCover,
+  restoreInternalDestination,
   updateInternalDestination,
   uploadInternalDestinationMedia,
   type ApiError,
@@ -18,6 +20,8 @@ import {
 import { destinationMutationSchema, type DestinationMutationRequest, type InternalDestination } from "@/lib/shared/internal";
 
 import { useInternalUnsavedChanges } from "./internal-shell";
+import { useDestinationCursorPage } from "./use-destination-cursor-page";
+import { useDestinationMediaState } from "./use-destination-media-state";
 import type { MapLocationSelection } from "./map-location-picker";
 import {
   buildFormFromDestination,
@@ -49,31 +53,68 @@ export function useDestinationManager() {
   const queryClient = useQueryClient();
   const { showToast } = useToast();
   const { setIsDirty } = useInternalUnsavedChanges();
-  const [status, setStatus] = useState("");
+  const listPagination = useDestinationCursorPage({
+    initialStatus: "published",
+    missingNextMessage: "Không có trang sau để chuyển tới.",
+    missingPageMessage: (page) => `Chỉ tìm thấy đến trang ${page}.`,
+    showToast,
+  });
+  const archivedPagination = useDestinationCursorPage({
+    fixedStatus: "archived",
+    initialStatus: "archived",
+    missingNextMessage: "Không có trang archived sau để chuyển tới.",
+    missingPageMessage: (page) => `Chỉ tìm thấy đến trang archived ${page}.`,
+    showToast,
+  });
+  const mediaState = useDestinationMediaState();
   const [editingDestination, setEditingDestination] = useState<InternalDestination | null>(null);
   const [form, setForm] = useState<DestinationMutationRequest>(initialForm);
   const [savedForm, setSavedForm] = useState<DestinationMutationRequest>(initialForm);
   const [keywordsText, setKeywordsText] = useState("");
   const [savedKeywordsText, setSavedKeywordsText] = useState("");
-  const [mediaTitle, setMediaTitle] = useState("");
-  const [mediaType, setMediaType] = useState("image");
-  const [isCover, setIsCover] = useState(true);
-  const [selectedFile, setSelectedFile] = useState<File | null>(null);
-  const [isCreatingDraft, setIsCreatingDraft] = useState(false);
   const [formErrors, setFormErrors] = useState<Partial<Record<keyof DestinationMutationRequest, string>> & { searchKeywords?: string }>({});
-  const [dangerAction, setDangerAction] = useState<null | { kind: "archive" | "delete-media"; destinationId?: string; mediaId?: string }>(null);
-  const [lastDraftSelection, setLastDraftSelection] = useState<MapLocationSelection | null>(null);
   const [draftCreationError, setDraftCreationError] = useState<DraftCreationError | null>(null);
+  const [dangerAction, setDangerAction] = useState<null | { kind: "archive" | "delete-media" | "hard-delete" | "restore"; destinationId?: string; mediaId?: string }>(null);
 
   const destinationsQuery = useQuery({
-    queryKey: useMemo(() => ["internal", "destinations", status] as const, [status]),
-    queryFn: () => getInternalDestinations(status || undefined),
+    queryKey: useMemo(
+      () => ["internal", "destinations", "page", listPagination.status, listPagination.cursor, listPagination.pageSize, listPagination.searchQuery] as const,
+      [listPagination.cursor, listPagination.pageSize, listPagination.searchQuery, listPagination.status],
+    ),
+    queryFn: () =>
+      getInternalDestinationPage({
+        cursor: listPagination.cursor ?? undefined,
+        limit: listPagination.pageSize,
+        q: listPagination.searchQuery,
+        status: listPagination.status,
+      }),
+  });
+  const archivedDestinationsQuery = useQuery({
+    queryKey: ["internal", "destinations", "archived", archivedPagination.cursor, archivedPagination.pageSize, archivedPagination.searchQuery] as const,
+    queryFn: () =>
+      getInternalDestinationPage({
+        cursor: archivedPagination.cursor ?? undefined,
+        limit: archivedPagination.pageSize,
+        q: archivedPagination.searchQuery,
+        status: "archived",
+      }),
   });
   const mediaQuery = useQuery({
     enabled: Boolean(editingDestination),
     queryKey: useMemo(() => ["internal", "destination-media", editingDestination?.destinationId] as const, [editingDestination?.destinationId]),
     queryFn: () => getInternalDestinationMedia(editingDestination?.destinationId ?? ""),
   });
+
+  const uploadDraftMediaQueue = async (destinationId: string) => {
+    for (const item of mediaState.draftMediaItemsRef.current) {
+      await uploadInternalDestinationMedia(destinationId, {
+        file: item.file,
+        isCover: item.isCover,
+        mediaType: mediaState.mediaType || "image",
+        title: item.file.name,
+      });
+    }
+  };
 
   const saveMutation = useMutation({
     mutationFn: (input: DestinationMutationRequest) =>
@@ -91,11 +132,64 @@ export function useDestinationManager() {
       setSavedForm(nextForm);
       setKeywordsText(nextKeywordsText);
       setSavedKeywordsText(nextKeywordsText);
-      setMediaTitle("");
-      setMediaType("image");
-      setIsCover(true);
-      setSelectedFile(null);
       setFormErrors({});
+
+      if (mediaState.draftMediaItemsRef.current.length > 0) {
+        try {
+          await uploadDraftMediaQueue(response.destination.destinationId);
+          await Promise.all([
+            queryClient.invalidateQueries({ queryKey: ["internal", "destination-media", response.destination.destinationId] }),
+            queryClient.invalidateQueries({ queryKey: ["internal", "destinations"] }),
+            queryClient.invalidateQueries({ queryKey: ["internal", "destination-options"] }),
+          ]);
+          mediaState.clearDraftMediaItems();
+          mediaState.resetMediaFields();
+          showToast({
+            message:
+              response.destination.status === "published"
+                ? "Địa điểm đã được lưu và ảnh nháp đã được tải lên 4K."
+                : "Địa điểm đã được lưu vào DB và ảnh nháp đã được lưu vật lý 4K.",
+            title: "Lưu thành công",
+            variant: "success",
+          });
+          return;
+        } catch (error) {
+          showToast({
+            message: (error as ApiError | undefined)?.message ?? "Địa điểm đã lưu, nhưng không thể tải ảnh nháp.",
+            title: "Ảnh nháp chưa lưu xong",
+            variant: "error",
+          });
+          return;
+        }
+      }
+
+      if (response.destination.status !== "published") {
+        showToast({
+          message: "Địa điểm đã được lưu.",
+          title: "Lưu thành công",
+          variant: "success",
+        });
+        return;
+      }
+
+      if (mediaState.selectedFile) {
+        showToast({
+          message: "Địa điểm đã được lưu. Ảnh sẽ được tải lên ngay.",
+          title: "Lưu thành công",
+          variant: "success",
+        });
+        uploadMutation.mutate({
+          destinationId: response.destination.destinationId,
+          file: mediaState.selectedFile,
+          isCover: mediaState.isCover,
+          mediaType: mediaState.mediaType,
+          title: mediaState.mediaTitle.trim() || undefined,
+        });
+        return;
+      }
+
+      mediaState.resetMediaFields();
+
       showToast({
         message: "Địa điểm đã được lưu.",
         title: "Lưu thành công",
@@ -113,11 +207,21 @@ export function useDestinationManager() {
 
   const archiveMutation = useMutation({
     mutationFn: archiveInternalDestination,
-    onSuccess: async () => {
+    onSuccess: async (response) => {
       await Promise.all([
         queryClient.invalidateQueries({ queryKey: ["internal", "destinations"] }),
         queryClient.invalidateQueries({ queryKey: ["internal", "destination-options"] }),
       ]);
+      if (response.destination.destinationId === editingDestination?.destinationId) {
+        const nextForm = buildFormFromDestination(response.destination);
+        const nextKeywordsText = joinKeywords(response.destination.searchKeywords);
+
+        setEditingDestination(response.destination);
+        setForm(nextForm);
+        setSavedForm(nextForm);
+        setKeywordsText(nextKeywordsText);
+        setSavedKeywordsText(nextKeywordsText);
+      }
       showToast({
         message: "Địa điểm đã chuyển sang archived.",
         title: "Đã lưu trữ",
@@ -126,27 +230,118 @@ export function useDestinationManager() {
     },
   });
 
-  const uploadMutation = useMutation({
-    mutationFn: async () => {
-      if (!editingDestination || !selectedFile) {
-        throw new Error("Vui lòng chọn ảnh để tải lên.");
-      }
+  const restoreMutation = useMutation({
+    mutationFn: restoreInternalDestination,
+    onSuccess: async (response) => {
+      await Promise.all([
+        queryClient.invalidateQueries({ queryKey: ["internal", "destinations"] }),
+        queryClient.invalidateQueries({ queryKey: ["internal", "destination-options"] }),
+        queryClient.invalidateQueries({ queryKey: ["internal", "destinations", "archived"] }),
+      ]);
+      if (response.destination.destinationId === editingDestination?.destinationId) {
+        const nextForm = buildFormFromDestination(response.destination);
+        const nextKeywordsText = joinKeywords(response.destination.searchKeywords);
 
-      return uploadInternalDestinationMedia(editingDestination.destinationId, {
-        file: selectedFile,
-        isCover,
-        mediaType,
-        title: mediaTitle.trim() || undefined,
+        setEditingDestination(response.destination);
+        setForm(nextForm);
+        setSavedForm(nextForm);
+        setKeywordsText(nextKeywordsText);
+        setSavedKeywordsText(nextKeywordsText);
+      }
+      showToast({
+        message: "Địa điểm đã được khôi phục về draft.",
+        title: "Đã khôi phục",
+        variant: "success",
       });
     },
+  });
+
+  const hardDeleteMutation = useMutation({
+    mutationFn: hardDeleteInternalDestination,
+    onSuccess: async (response) => {
+      await Promise.all([
+        queryClient.invalidateQueries({ queryKey: ["internal", "destinations"] }),
+        queryClient.invalidateQueries({ queryKey: ["internal", "destination-options"] }),
+      ]);
+
+      if (response.destination.destinationId === editingDestination?.destinationId) {
+        resetForm();
+      }
+
+      showToast({
+        message: "Địa điểm và media đã bị xóa vĩnh viễn.",
+        title: "Đã xóa vĩnh viễn",
+        variant: "success",
+      });
+    },
+    onError: (error) => {
+      showToast({
+        message: (error as ApiError | undefined)?.message ?? "Không thể xóa vĩnh viễn địa điểm.",
+        title: "Xóa chưa thành công",
+        variant: "error",
+      });
+    },
+  });
+
+  const quickStatusMutation = useMutation({
+    mutationFn: ({ destination, status: nextStatus }: { destination: InternalDestination; status: DestinationMutationRequest["status"] }) =>
+      updateInternalDestination(destination.destinationId, {
+        ...buildFormFromDestination(destination),
+        status: nextStatus,
+      }),
+    onSuccess: async (response) => {
+      await Promise.all([
+        queryClient.invalidateQueries({ queryKey: ["internal", "destinations"] }),
+        queryClient.invalidateQueries({ queryKey: ["internal", "destination-options"] }),
+      ]);
+
+      if (response.destination.destinationId === editingDestination?.destinationId) {
+        const nextForm = buildFormFromDestination(response.destination);
+        const nextKeywordsText = joinKeywords(response.destination.searchKeywords);
+
+        setEditingDestination(response.destination);
+        setForm(nextForm);
+        setSavedForm(nextForm);
+        setKeywordsText(nextKeywordsText);
+        setSavedKeywordsText(nextKeywordsText);
+      }
+
+      showToast({
+        message: `Địa điểm đã chuyển sang ${response.destination.status}.`,
+        title: "Đã cập nhật trạng thái",
+        variant: "success",
+      });
+    },
+    onError: (error) => {
+      showToast({
+        message: (error as ApiError | undefined)?.message ?? "Không thể cập nhật trạng thái địa điểm.",
+        title: "Cập nhật chưa thành công",
+        variant: "error",
+      });
+    },
+  });
+
+  const uploadMutation = useMutation({
+    mutationFn: async (input: {
+      destinationId: string;
+      file: File;
+      isCover: boolean;
+      mediaType: string;
+      title?: string;
+    }) =>
+      uploadInternalDestinationMedia(input.destinationId, {
+        file: input.file,
+        isCover: input.isCover,
+        mediaType: input.mediaType,
+        title: input.title,
+      }),
     onSuccess: async () => {
       await Promise.all([
         queryClient.invalidateQueries({ queryKey: ["internal", "destination-media", editingDestination?.destinationId] }),
         queryClient.invalidateQueries({ queryKey: ["internal", "destinations"] }),
         queryClient.invalidateQueries({ queryKey: ["internal", "destination-options"] }),
       ]);
-      setSelectedFile(null);
-      setMediaTitle("");
+      mediaState.resetMediaFields();
       showToast({
         message: "Ảnh đã được tải lên và chuẩn hóa 4K.",
         title: "Upload thành công",
@@ -206,16 +401,20 @@ export function useDestinationManager() {
   });
 
   const destinations = destinationsQuery.data?.destinations ?? [];
+  const destinationsNextCursor = destinationsQuery.data?.nextCursor ?? null;
+  const archivedDestinations = archivedDestinationsQuery.data?.destinations ?? [];
+  const archivedDestinationsNextCursor = archivedDestinationsQuery.data?.nextCursor ?? null;
   const media = mediaQuery.data?.media ?? [];
 
   const hasUnsavedChanges =
     JSON.stringify({
       form,
       keywordsText,
-      mediaTitle,
-      mediaType,
-      isCover,
-      selectedFile: Boolean(selectedFile),
+      mediaTitle: mediaState.mediaTitle,
+      mediaType: mediaState.mediaType,
+      isCover: mediaState.isCover,
+      selectedFile: Boolean(mediaState.selectedFile),
+      draftMediaItems: mediaState.draftMediaItems.map((item) => `${item.file.name}:${item.isCover}`),
     }) !==
     JSON.stringify({
       form: savedForm,
@@ -224,6 +423,7 @@ export function useDestinationManager() {
       mediaType: "image",
       isCover: true,
       selectedFile: false,
+      draftMediaItems: [],
     });
 
   useEffect(() => {
@@ -241,9 +441,8 @@ export function useDestinationManager() {
     setSavedForm(nextForm);
     setKeywordsText(nextKeywordsText);
     setSavedKeywordsText(nextKeywordsText);
-    setIsCover(true);
-    setMediaTitle("");
-    setSelectedFile(null);
+    mediaState.resetMediaFields();
+    mediaState.clearDraftMediaItems();
     setFormErrors({});
     setDraftCreationError(null);
   };
@@ -263,6 +462,14 @@ export function useDestinationManager() {
       archiveMutation.mutate(dangerAction.destinationId);
     }
 
+    if (dangerAction?.kind === "restore" && dangerAction.destinationId) {
+      restoreMutation.mutate(dangerAction.destinationId);
+    }
+
+    if (dangerAction?.kind === "hard-delete" && dangerAction.destinationId) {
+      hardDeleteMutation.mutate(dangerAction.destinationId);
+    }
+
     if (dangerAction?.kind === "delete-media" && dangerAction.mediaId) {
       deleteMediaMutation.mutate({ mediaId: dangerAction.mediaId });
     }
@@ -276,89 +483,14 @@ export function useDestinationManager() {
     setSavedForm(initialForm);
     setKeywordsText("");
     setSavedKeywordsText("");
-    setMediaTitle("");
-    setSelectedFile(null);
-    setIsCover(true);
+    mediaState.resetMediaFields();
+    mediaState.clearDraftMediaItems();
     setFormErrors({});
-    setIsCreatingDraft(false);
-    setLastDraftSelection(null);
     setDraftCreationError(null);
-  };
-
-  const createDraftFromSelection = async (selection: MapLocationSelection, current: DestinationMutationRequest) => {
-    setLastDraftSelection(selection);
-    const currentName = current.name.trim();
-    const fields = extractLocationFields(selection, currentName);
-    const nextForm = {
-      ...current,
-      address: fields.address,
-      city: fields.city,
-      country: fields.country,
-      latitude: fields.latitude,
-      longitude: fields.longitude,
-      name: fields.name,
-      region: fields.region,
-    };
-    const parsed = destinationMutationSchema.safeParse({
-      ...nextForm,
-      coverImageUrl: nextForm.coverImageUrl || "",
-      searchKeywords: splitLines(keywordsText),
-    });
-
-    if (!parsed.success) {
-      setFormErrors(toValidationErrors(parsed.error.issues));
-      setDraftCreationError({
-        message: parsed.error.issues[0]?.message ?? "Dữ liệu địa điểm không hợp lệ.",
-      });
-      return;
-    }
-
-    setFormErrors({});
-    setIsCreatingDraft(true);
-
-    try {
-      const response = await createInternalDestinationApi(parsed.data);
-      const nextSavedForm = buildFormFromDestination(response.destination);
-      const nextSavedKeywordsText = joinKeywords(response.destination.searchKeywords);
-
-      setEditingDestination(response.destination);
-      setForm(nextSavedForm);
-      setSavedForm(nextSavedForm);
-      setKeywordsText(nextSavedKeywordsText);
-      setSavedKeywordsText(nextSavedKeywordsText);
-      setMediaTitle("");
-      setMediaType("image");
-      setIsCover(true);
-      setSelectedFile(null);
-      setDraftCreationError(null);
-      showToast({
-        message: "Bản nháp địa điểm đã được tạo để bạn có thể tải ảnh ngay.",
-        title: "Đã tạo nháp",
-        variant: "success",
-      });
-    } catch (error) {
-      const apiError = error as ApiError | undefined;
-      setDraftCreationError({
-        details: apiError?.details,
-        message: apiError?.message ?? "Không thể tạo bản nháp địa điểm.",
-      });
-    } finally {
-      setIsCreatingDraft(false);
-    }
-  };
-
-  const retryCreateDraft = () => {
-    if (!lastDraftSelection) {
-      return;
-    }
-
-    setDraftCreationError(null);
-    void createDraftFromSelection(lastDraftSelection, form);
   };
 
   const handleMapSelect = (selection: MapLocationSelection) => {
-    const currentName = form.name.trim();
-    const fields = extractLocationFields(selection, currentName);
+    const fields = extractLocationFields(selection, "");
     const nextForm = {
       ...form,
       address: fields.address,
@@ -371,18 +503,12 @@ export function useDestinationManager() {
     };
 
     setForm(nextForm);
-    setDraftCreationError(null);
-
-    if (!editingDestination && !isCreatingDraft) {
-      void createDraftFromSelection(selection, nextForm);
-    }
   };
 
-  const handleSubmit = (event: FormEvent<HTMLFormElement>) => {
-    event.preventDefault();
-
+  const saveDestinationWithStatus = (nextStatus?: DestinationMutationRequest["status"]) => {
     const parsed = destinationMutationSchema.safeParse({
       ...form,
+      status: nextStatus ?? form.status,
       coverImageUrl: form.coverImageUrl || "",
       searchKeywords: splitLines(keywordsText),
     });
@@ -401,46 +527,107 @@ export function useDestinationManager() {
     saveMutation.mutate(parsed.data);
   };
 
+  const handleSubmit = (event: FormEvent<HTMLFormElement>) => {
+    event.preventDefault();
+    saveDestinationWithStatus();
+  };
+
+  const saveAsStatus = (nextStatus: DestinationMutationRequest["status"]) => {
+    saveDestinationWithStatus(nextStatus);
+  };
+
   return {
     archivePending: archiveMutation.isPending,
     dangerAction,
     deletePending: deleteMediaMutation.isPending,
+    archivedDestinations,
+    archivedDestinationsNextCursor,
+    archivedPageSize: archivedPagination.pageSize,
+    archivedSearchQuery: archivedPagination.searchQuery,
     destinations,
     editingDestination,
     draftCreationError,
+    draftMediaItems: mediaState.draftMediaItems,
     form,
     formErrors,
     handleMapSelect,
     handleSubmit,
-    isCover,
-    isCreatingDraft,
+    isCover: mediaState.isCover,
+    isCreatingDraft: false,
     isLoading: destinationsQuery.isLoading,
     keywordsText,
     media,
-    mediaTitle,
-    mediaType,
+    mediaTitle: mediaState.mediaTitle,
+    mediaType: mediaState.mediaType,
+    destinationsNextCursor,
     confirmDangerAction,
     onArchiveCurrent: requestArchiveCurrent,
     onOpenArchiveConfirm: (destinationId: string) => setDangerAction({ kind: "archive", destinationId }),
     onOpenDeleteMediaConfirm: requestDeleteMedia,
+    onOpenHardDeleteConfirm: (destinationId: string) => setDangerAction({ kind: "hard-delete", destinationId }),
+    onOpenRestoreConfirm: (destinationId: string) => setDangerAction({ kind: "restore", destinationId }),
+    onAddDraftMediaItems: mediaState.addDraftMediaItems,
+    onClearDraftMediaItems: mediaState.clearDraftMediaItems,
     onReset: resetForm,
-    onRetryDraft: retryCreateDraft,
+    onRetryDraft: () => undefined,
+    onSaveAsStatus: saveAsStatus,
+    onChangeDestinationStatus: (destination: InternalDestination, nextStatus: DestinationMutationRequest["status"]) =>
+      quickStatusMutation.mutate({ destination, status: nextStatus }),
     onSetCover: (mediaId: string) => setCoverMutation.mutate(mediaId),
-    onUpload: () => uploadMutation.mutate(),
+    onRemoveDraftMediaItem: mediaState.removeDraftMediaItem,
+    onSetDraftMediaCover: mediaState.setDraftMediaCover,
+    onUpload: () => {
+      if (!editingDestination || !mediaState.selectedFile || editingDestination.status !== "published") {
+        return;
+      }
+
+      uploadMutation.mutate({
+        destinationId: editingDestination.destinationId,
+        file: mediaState.selectedFile,
+        isCover: mediaState.isCover,
+        mediaType: mediaState.mediaType,
+        title: mediaState.mediaTitle.trim() || undefined,
+      });
+    },
     setDangerAction,
     setDraftCreationError,
     startEdit,
     savePending: saveMutation.isPending,
-    selectedFile,
+    statusChangePending: quickStatusMutation.isPending,
+    selectedFile: mediaState.selectedFile,
+    selectedFilePreviewUrl: mediaState.selectedFilePreviewUrl,
     setCoverPending: setCoverMutation.isPending,
     setForm,
-    setIsCover,
+    setIsCover: mediaState.setIsCover,
     setKeywordsText,
-    setMediaTitle,
-    setMediaType,
-    setSelectedFile,
-    setStatus,
-    status,
+    setMediaTitle: mediaState.setMediaTitle,
+    setMediaType: mediaState.setMediaType,
+    setSelectedFile: mediaState.setSelectedFile,
+    setStatus: listPagination.setStatus,
+    setPageSize: listPagination.setPageSize,
+    setSearchQuery: listPagination.setSearchQuery,
+    setListCursor: listPagination.setCursor,
+    setListCursorHistory: listPagination.setCursorHistory,
+    onNextDestinationsPage: () => listPagination.goToNextPage(destinationsNextCursor),
+    onPreviousDestinationsPage: listPagination.goToPreviousPage,
+    onJumpToDestinationsPage: (page: number) => listPagination.jumpToPage(page, destinationsNextCursor),
+    canGoToPreviousDestinationsPage: listPagination.canGoToPreviousPage,
+    currentDestinationsPage: listPagination.currentPage,
+    status: listPagination.status,
+    pageSize: listPagination.pageSize,
+    searchQuery: listPagination.searchQuery,
+    isPaging: destinationsQuery.isFetching || listPagination.isPageJumping,
+    isArchivedLoading: archivedDestinationsQuery.isLoading,
+    isArchivedPaging: archivedDestinationsQuery.isFetching || archivedPagination.isPageJumping,
+    restorePending: restoreMutation.isPending,
+    hardDeletePending: hardDeleteMutation.isPending,
+    onNextArchivedDestinationsPage: () => archivedPagination.goToNextPage(archivedDestinationsNextCursor),
+    onPreviousArchivedDestinationsPage: archivedPagination.goToPreviousPage,
+    onJumpToArchivedDestinationsPage: (page: number) => archivedPagination.jumpToPage(page, archivedDestinationsNextCursor),
+    canGoToPreviousArchivedDestinationsPage: archivedPagination.canGoToPreviousPage,
+    currentArchivedDestinationsPage: archivedPagination.currentPage,
+    setArchivedPageSize: archivedPagination.setPageSize,
+    setArchivedSearchQuery: archivedPagination.setSearchQuery,
     uploadPending: uploadMutation.isPending,
   } as const;
 }

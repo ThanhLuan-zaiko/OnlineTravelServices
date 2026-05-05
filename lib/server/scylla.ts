@@ -94,6 +94,30 @@ export async function executeQuery<T = Record<string, unknown>>(
   return result.rows as T[];
 }
 
+export async function executePagedQuery<T = Record<string, unknown>>(
+  query: string,
+  params: unknown[] = [],
+  options?: {
+    fetchSize?: number;
+    pageState?: string | Buffer | null;
+  },
+) {
+  const result = await getScyllaClient().execute(
+    query,
+    params,
+    {
+      prepare: true,
+      fetchSize: options?.fetchSize,
+      pageState: options?.pageState ?? undefined,
+    },
+  );
+
+  return {
+    pageState: result.pageState ?? null,
+    rows: result.rows as T[],
+  };
+}
+
 export async function checkScyllaHealth(): Promise<ScyllaHealth> {
   const rows = await Promise.race([
     executeQuery<{

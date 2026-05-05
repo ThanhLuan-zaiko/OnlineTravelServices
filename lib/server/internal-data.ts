@@ -7,9 +7,12 @@ export {
   deleteDestinationMedia,
   findDestinationMedia,
   findInternalDestination,
+  hardDeleteInternalDestination,
   listDestinationMedia,
   listInternalDestinations,
+  listInternalDestinationsPage,
   setDestinationCoverImage,
+  restoreInternalDestination,
   updateInternalDestination,
 } from "@/lib/server/internal-data/destinations";
 export {

@@ -3,12 +3,10 @@ import "server-only";
 import { types } from "cassandra-driver";
 import { uuidv7 } from "uuidv7";
 
-import { executeQuery } from "@/lib/server/scylla";
+import { executePagedQuery, executeQuery } from "@/lib/server/scylla";
 import type { DestinationMutationRequest } from "@/lib/shared/internal";
 
 import {
-  decimal,
-  decimalFromNumber,
   toDestination,
   toDestinationMedia,
   type DestinationByIdRow,
@@ -17,6 +15,9 @@ import {
 } from "./shared";
 
 const DESTINATION_STATUSES = ["published", "draft", "archived"] as const;
+const DEFAULT_DESTINATION_PAGE_SIZE = 8;
+const MAX_DESTINATION_PAGE_SIZE = 48;
+const SEARCH_SCAN_MULTIPLIER = 6;
 
 async function writeDestinationStatusProjection(destinationId: string, input: DestinationMutationRequest, actorUserId: string | null) {
   await executeQuery(
@@ -25,7 +26,7 @@ async function writeDestinationStatusProjection(destinationId: string, input: De
      VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
     [
       input.status,
-      types.TimeUuid.now(),
+      String(types.TimeUuid.now()),
       destinationId,
       input.name,
       input.country,
@@ -43,6 +44,42 @@ async function getDestinationMediaCount(destinationId: string) {
   );
 
   return rows.length;
+}
+
+function clampDestinationPageSize(limit?: number) {
+  if (!Number.isFinite(limit) || !limit) {
+    return DEFAULT_DESTINATION_PAGE_SIZE;
+  }
+
+  return Math.min(Math.max(Math.trunc(limit), 1), MAX_DESTINATION_PAGE_SIZE);
+}
+
+function destinationMatchesSearch(
+  destination: NonNullable<Awaited<ReturnType<typeof findInternalDestination>>>,
+  query: string | null | undefined,
+) {
+  const normalizedQuery = query?.trim().toLowerCase();
+
+  if (!normalizedQuery) {
+    return true;
+  }
+
+  const searchableText = [
+    destination.name,
+    destination.country,
+    destination.region,
+    destination.city,
+    destination.category,
+    destination.safetyLevel,
+    destination.description,
+    destination.address,
+    ...destination.searchKeywords,
+  ]
+    .filter(Boolean)
+    .join(" ")
+    .toLowerCase();
+
+  return searchableText.includes(normalizedQuery);
 }
 
 export async function listInternalDestinations(status?: string) {
@@ -66,6 +103,67 @@ export async function listInternalDestinations(status?: string) {
     .filter((destination): destination is NonNullable<Awaited<ReturnType<typeof findInternalDestination>>> => Boolean(destination))
     .filter((destination) => !status || destination.status === status)
     .sort((left, right) => right.updatedAt.localeCompare(left.updatedAt));
+}
+
+export async function listInternalDestinationsPage(
+  status: Exclude<(typeof DESTINATION_STATUSES)[number], "archived"> | "archived",
+  options?: {
+    cursor?: string | null;
+    limit?: number;
+    query?: string | null;
+  },
+) {
+  const limit = clampDestinationPageSize(options?.limit);
+  const query = options?.query?.trim() ?? "";
+  const fetchSize = query ? Math.min(limit * SEARCH_SCAN_MULTIPLIER, MAX_DESTINATION_PAGE_SIZE * SEARCH_SCAN_MULTIPLIER) : limit;
+  let pageState: string | Buffer | null | undefined = options?.cursor ?? undefined;
+  const destinations: NonNullable<Awaited<ReturnType<typeof findInternalDestination>>>[] = [];
+  const seenDestinationIds = new Set<string>();
+
+  do {
+    const page: { pageState: string | Buffer | null; rows: DestinationStatusRow[] } = await executePagedQuery<DestinationStatusRow>(
+      `SELECT destination_id
+       FROM destination_status_by_admin
+       WHERE status = ?`,
+      [status],
+      {
+        fetchSize,
+        pageState,
+      },
+    );
+
+    pageState = page.pageState;
+
+    const candidateIds = page.rows
+      .map((row) => String(row.destination_id))
+      .filter((destinationId) => {
+        if (seenDestinationIds.has(destinationId)) {
+          return false;
+        }
+
+        seenDestinationIds.add(destinationId);
+        return true;
+      });
+
+    const pageDestinations = (await Promise.all(candidateIds.map((destinationId) => findInternalDestination(destinationId))))
+      .filter(
+        (destination): destination is NonNullable<Awaited<ReturnType<typeof findInternalDestination>>> => {
+          if (!destination) {
+            return false;
+          }
+
+          return destination.status === status;
+        },
+      )
+      .filter((destination) => destinationMatchesSearch(destination, query));
+
+    destinations.push(...pageDestinations);
+  } while (destinations.length < limit && pageState);
+
+  return {
+    destinations: destinations.slice(0, limit),
+    nextCursor: pageState ? String(pageState) : null,
+  };
 }
 
 export async function findInternalDestination(destinationId: string) {
@@ -107,14 +205,14 @@ export async function createInternalDestination(input: DestinationMutationReques
       input.status,
       input.description ?? null,
       input.coverImageUrl ?? null,
-      decimal("0"),
+      0,
       input.safetyLevel,
       input.popularityScore,
       now,
       now,
       input.address ?? null,
-      decimalFromNumber(input.latitude),
-      decimalFromNumber(input.longitude),
+      input.latitude,
+      input.longitude,
       input.searchKeywords,
     ],
   );
@@ -152,8 +250,8 @@ export async function updateInternalDestination(destinationId: string, input: De
       input.popularityScore,
       now,
       input.address ?? null,
-      decimalFromNumber(input.latitude),
-      decimalFromNumber(input.longitude),
+      input.latitude,
+      input.longitude,
       input.searchKeywords,
       destinationId,
     ],
@@ -179,6 +277,79 @@ export async function archiveInternalDestination(destinationId: string, actorUse
     },
     actorUserId,
   );
+}
+
+export async function restoreInternalDestination(destinationId: string, actorUserId: string) {
+  const existing = await findInternalDestination(destinationId);
+
+  if (!existing) {
+    return null;
+  }
+
+  if (existing.status !== "archived") {
+    return existing;
+  }
+
+  return updateInternalDestination(
+    destinationId,
+    {
+      ...existing,
+      status: "draft",
+    },
+    actorUserId,
+  );
+}
+
+export async function hardDeleteInternalDestination(destinationId: string) {
+  const existing = await findInternalDestination(destinationId);
+
+  if (!existing) {
+    return null;
+  }
+
+  const media = await listDestinationMedia(destinationId);
+
+  for (const item of media) {
+    await executeQuery(
+      "DELETE FROM destination_media_by_destination WHERE destination_id = ? AND media_order = ? AND media_id = ?",
+      [destinationId, item.mediaOrder, item.mediaId],
+    );
+  }
+
+  for (const currentStatus of DESTINATION_STATUSES) {
+    let pageState: string | Buffer | null | undefined;
+
+    do {
+      const page: { pageState: string | Buffer | null; rows: DestinationStatusRow[] } = await executePagedQuery<DestinationStatusRow>(
+        "SELECT updated_at, destination_id FROM destination_status_by_admin WHERE status = ?",
+        [currentStatus],
+        {
+          fetchSize: 500,
+          pageState,
+        },
+      );
+
+      pageState = page.pageState;
+
+      for (const row of page.rows) {
+        if (String(row.destination_id) !== destinationId) {
+          continue;
+        }
+
+        await executeQuery(
+          "DELETE FROM destination_status_by_admin WHERE status = ? AND updated_at = ? AND destination_id = ?",
+          [currentStatus, row.updated_at, destinationId],
+        );
+      }
+    } while (pageState);
+  }
+
+  await executeQuery("DELETE FROM destinations_by_id WHERE destination_id = ?", [destinationId]);
+
+  return {
+    destination: existing,
+    media,
+  };
 }
 
 export async function listDestinationMedia(destinationId: string) {

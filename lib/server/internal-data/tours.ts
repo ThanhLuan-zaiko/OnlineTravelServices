@@ -15,7 +15,7 @@ import {
 } from "./shared";
 
 async function writeTourProjections(tourId: string, input: TourMutationRequest, createdBy: string | null) {
-  const updatedAt = types.TimeUuid.now();
+  const updatedAt = String(types.TimeUuid.now());
 
   await Promise.all([
     executeQuery(

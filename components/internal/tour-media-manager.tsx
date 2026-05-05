@@ -7,6 +7,7 @@ import { FiSave, FiStar, FiTrash2 } from "react-icons/fi";
 
 import { ImageDropzone } from "@/components/ui/image-dropzone";
 import { SelectField } from "@/components/ui/select-field";
+import { SwitchField } from "@/components/ui/switch-field";
 import { useToast } from "@/components/ui/toast";
 import {
   deleteInternalTourMedia,
@@ -135,10 +136,7 @@ export function TourMediaManager({ coverImageUrl, tour, tourId }: TourMediaManag
             placeholder="Chọn loại ảnh"
             value={mediaType}
           />
-          <label className="flex items-center gap-3 rounded-xl border border-slate-200 p-3 text-sm font-semibold dark:border-neutral-800">
-            <input checked={isCover} onChange={(event) => setIsCover(event.target.checked)} type="checkbox" />
-            Đặt làm ảnh đại diện
-          </label>
+          <SwitchField checked={isCover} className="md:self-end" label="Đặt làm ảnh đại diện" name={`tour-media-is-cover-${tourId}`} onCheckedChange={setIsCover} />
         </div>
         <ImageDropzone disabled={uploadMutation.isPending} file={selectedFile} label="Chọn file ảnh" onFileChange={setSelectedFile} />
         <button

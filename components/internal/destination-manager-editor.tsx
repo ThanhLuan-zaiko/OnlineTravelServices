@@ -1,6 +1,6 @@
 "use client";
 
-import { FiArchive, FiSave } from "react-icons/fi";
+import { FiArchive, FiCheckCircle, FiFileText, FiSave } from "react-icons/fi";
 import type { Dispatch, FormEvent, SetStateAction } from "react";
 
 import { SelectField } from "@/components/ui/select-field";
@@ -13,8 +13,8 @@ type DestinationManagerEditorProps = {
   errors: Partial<Record<keyof DestinationMutationRequest, string>> & { searchKeywords?: string };
   form: DestinationMutationRequest;
   keywordsText: string;
-  onArchive: () => void;
   onReset: () => void;
+  onSaveAsStatus: (status: DestinationMutationRequest["status"]) => void;
   onSubmit: (event: FormEvent<HTMLFormElement>) => void;
   savePending: boolean;
   setForm: Dispatch<SetStateAction<DestinationMutationRequest>>;
@@ -27,8 +27,8 @@ export function DestinationManagerEditor({
   errors,
   form,
   keywordsText,
-  onArchive,
   onReset,
+  onSaveAsStatus,
   onSubmit,
   savePending,
   setForm,
@@ -49,7 +49,7 @@ export function DestinationManagerEditor({
             {editingDestination ? "Cập nhật địa điểm" : "Tạo địa điểm"}
           </h3>
           <p className="mt-1 text-sm text-slate-500 dark:text-neutral-400">
-            Chọn vị trí trên bản đồ hoặc tìm kiếm để lấy kinh độ/vĩ độ và địa chỉ.
+            Chọn vị trí và thêm ảnh để preview trên UI. Dữ liệu chỉ vào cơ sở dữ liệu khi bạn bấm lưu.
           </p>
         </div>
         {editingDestination ? <StatusPill value={editingDestination.status} /> : null}
@@ -191,7 +191,25 @@ export function DestinationManagerEditor({
             type="submit"
           >
             <FiSave size={17} />
-            Lưu địa điểm
+            Lưu theo trạng thái đã chọn
+          </button>
+          <button
+            className="inline-flex h-11 items-center justify-center gap-2 rounded-xl border border-amber-200 bg-amber-50 px-4 text-sm font-semibold text-amber-800 transition hover:-translate-y-0.5 disabled:cursor-not-allowed disabled:opacity-70 dark:border-amber-900 dark:bg-amber-950/40 dark:text-amber-200"
+            disabled={savePending}
+            onClick={() => onSaveAsStatus("draft")}
+            type="button"
+          >
+            <FiFileText size={17} />
+            Lưu draft DB
+          </button>
+          <button
+            className="inline-flex h-11 items-center justify-center gap-2 rounded-xl border border-emerald-200 bg-emerald-50 px-4 text-sm font-semibold text-emerald-800 transition hover:-translate-y-0.5 disabled:cursor-not-allowed disabled:opacity-70 dark:border-emerald-900 dark:bg-emerald-950/40 dark:text-emerald-200"
+            disabled={savePending}
+            onClick={() => onSaveAsStatus("published")}
+            type="button"
+          >
+            <FiCheckCircle size={17} />
+            Publish ngay
           </button>
           <button
             className="inline-flex h-11 items-center justify-center gap-2 rounded-xl border border-slate-200 px-4 text-sm font-semibold text-slate-700 transition hover:bg-slate-50 dark:border-neutral-800 dark:text-neutral-200 dark:hover:bg-neutral-900"
@@ -203,14 +221,24 @@ export function DestinationManagerEditor({
           {editingDestination ? (
             <button
               className="inline-flex h-11 items-center justify-center gap-2 rounded-xl border border-rose-200 px-4 text-sm font-semibold text-rose-700 transition hover:bg-rose-50 dark:border-rose-950 dark:text-rose-300 dark:hover:bg-rose-950/40"
-              disabled={archivePending}
-              onClick={onArchive}
+              disabled={archivePending || savePending}
+              onClick={() => onSaveAsStatus("archived")}
               type="button"
             >
               <FiArchive size={17} />
-              Lưu trữ
+              Chuyển archived
             </button>
-          ) : null}
+          ) : (
+            <button
+              className="inline-flex h-11 items-center justify-center gap-2 rounded-xl border border-rose-200 px-4 text-sm font-semibold text-rose-700 transition hover:bg-rose-50 disabled:cursor-not-allowed disabled:opacity-70 dark:border-rose-950 dark:text-rose-300 dark:hover:bg-rose-950/40"
+              disabled={savePending}
+              onClick={() => onSaveAsStatus("archived")}
+              type="button"
+            >
+              <FiArchive size={17} />
+              Lưu vào archived
+            </button>
+          )}
         </div>
       </form>
     </InternalPanel>

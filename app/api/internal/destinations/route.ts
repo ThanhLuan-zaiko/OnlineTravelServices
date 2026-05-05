@@ -1,6 +1,6 @@
 import { requireAdministrativeStaff } from "@/lib/server/internal-auth";
 import { internalErrorResponse, internalJson } from "@/lib/server/internal-api";
-import { createInternalDestination, listInternalDestinations } from "@/lib/server/internal-data";
+import { createInternalDestination, listInternalDestinations, listInternalDestinationsPage } from "@/lib/server/internal-data";
 import { assertSameOriginRequest } from "@/lib/server/request-security";
 import { destinationStatusSchema, destinationMutationSchema } from "@/lib/shared/internal";
 
@@ -12,7 +12,26 @@ export async function GET(request: Request) {
     await requireAdministrativeStaff(request);
     const { searchParams } = new URL(request.url);
     const statusParam = searchParams.get("status") ?? undefined;
+    const cursor = searchParams.get("cursor") ?? undefined;
+    const limitParam = searchParams.get("limit") ?? undefined;
+    const query = searchParams.get("q") ?? undefined;
     const status = statusParam ? destinationStatusSchema.parse(statusParam) : undefined;
+    const parsedLimit = limitParam ? Number.parseInt(limitParam, 10) : undefined;
+    const limit = Number.isFinite(parsedLimit) && (parsedLimit as number) > 0 ? parsedLimit : undefined;
+
+    if (cursor !== undefined || limit !== undefined || query !== undefined) {
+      const page = await listInternalDestinationsPage(
+        status ?? "published",
+        {
+          cursor,
+          limit,
+          query,
+        },
+      );
+
+      return internalJson(page);
+    }
+
     const destinations = await listInternalDestinations(status);
 
     return internalJson({ destinations });

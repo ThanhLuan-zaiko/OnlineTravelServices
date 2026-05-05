@@ -141,10 +141,10 @@ export function MapLocationPicker({ latitude, longitude, onSelect }: MapLocation
 
       {results.length > 0 ? (
         <div className="grid gap-2">
-          {results.map((result) => (
+          {results.map((result, index) => (
             <button
               className="rounded-xl border border-slate-200 bg-white px-3 py-2 text-left text-sm transition hover:border-sky-300 hover:bg-sky-50 dark:border-neutral-800 dark:bg-black dark:hover:border-sky-900 dark:hover:bg-neutral-900"
-              key={`${result.latitude}-${result.longitude}-${result.displayName}`}
+              key={`${result.latitude}-${result.longitude}-${result.displayName}-${index}`}
               onClick={async () => {
                 onSelect(result);
                 setQuery(result.displayName);

@@ -32,3 +32,19 @@
 .ui-confirm-modal-card {
   animation: ui-confirm-modal-card-enter 220ms ease-out;
 }
+
+@keyframes destination-card-enter {
+  from {
+    opacity: 0;
+    transform: translateY(18px) scale(0.98);
+  }
+
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+.destination-card-enter {
+  animation: destination-card-enter 320ms ease-out both;
+}

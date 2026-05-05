@@ -7,6 +7,7 @@ import { FiArchive, FiEdit2, FiPlus, FiSave } from "react-icons/fi";
 
 import { ConfirmModal } from "@/components/ui/confirm-modal";
 import { SelectField } from "@/components/ui/select-field";
+import { SwitchField } from "@/components/ui/switch-field";
 import { useToast } from "@/components/ui/toast";
 import {
   archiveInternalTour,
@@ -354,10 +355,9 @@ export function TourManager() {
               </label>
             </div>
 
-            <label className="flex items-center gap-3 rounded-xl border border-slate-200 p-3 text-sm font-semibold dark:border-neutral-800">
-              <input checked={form.vipOnly} onChange={(event) => updateForm("vipOnly", event.target.checked)} type="checkbox" />
-              Chỉ dành cho VIP
-            </label>
+            <div className="md:col-span-2">
+              <SwitchField checked={form.vipOnly} label="Chỉ dành cho VIP" name="tour-vip-only" onCheckedChange={(checked) => updateForm("vipOnly", checked)} />
+            </div>
 
             <label className="space-y-2">
               <span className="text-sm font-semibold">Tóm tắt</span>

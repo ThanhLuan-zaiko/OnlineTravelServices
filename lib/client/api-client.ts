@@ -162,6 +162,30 @@ export async function getInternalDestinations(status?: string) {
   return response.data;
 }
 
+export async function getInternalDestinationPage(input: {
+  cursor?: string | null;
+  limit?: number;
+  q?: string;
+  status?: string;
+}) {
+  const response = await apiClient.get<{ destinations: InternalDestination[]; nextCursor: string | null }>("/internal/destinations", {
+    params: {
+      cursor: input.cursor ?? undefined,
+      limit: input.limit,
+      q: input.q?.trim() || undefined,
+      status: input.status,
+    },
+  });
+
+  return response.data;
+}
+
+export async function getInternalDestination(destinationId: string) {
+  const response = await apiClient.get<{ destination: InternalDestination }>(`/internal/destinations/${destinationId}`);
+
+  return response.data;
+}
+
 export async function createInternalDestination(input: DestinationMutationRequest) {
   const response = await apiClient.post<{ destination: InternalDestination }>("/internal/destinations", input);
 
@@ -176,6 +200,20 @@ export async function updateInternalDestination(destinationId: string, input: De
 
 export async function archiveInternalDestination(destinationId: string) {
   const response = await apiClient.delete<{ destination: InternalDestination }>(`/internal/destinations/${destinationId}`);
+
+  return response.data;
+}
+
+export async function hardDeleteInternalDestination(destinationId: string) {
+  const response = await apiClient.delete<{ destination: InternalDestination; message: string }>(`/internal/destinations/${destinationId}`, {
+    params: { mode: "hard" },
+  });
+
+  return response.data;
+}
+
+export async function restoreInternalDestination(destinationId: string) {
+  const response = await apiClient.patch<{ destination: InternalDestination }>(`/internal/destinations/${destinationId}/restore`);
 
   return response.data;
 }

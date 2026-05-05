@@ -6,10 +6,12 @@ import { FiUploadCloud } from "react-icons/fi";
 type ImageDropzoneProps = {
   accept?: string;
   disabled?: boolean;
-  file: File | null;
+  file: File | File[] | null;
   hint?: string;
   label: string;
   onFileChange: (file: File | null) => void;
+  onFilesChange?: (files: File[]) => void;
+  multiple?: boolean;
 };
 
 export function ImageDropzone({
@@ -17,8 +19,10 @@ export function ImageDropzone({
   disabled = false,
   file,
   hint = "Hỗ trợ JPG, PNG, WebP. Kéo thả hoặc bấm để chọn ảnh.",
+  multiple = false,
   label,
   onFileChange,
+  onFilesChange,
 }: ImageDropzoneProps) {
   const id = useId();
   const inputRef = useRef<HTMLInputElement>(null);
@@ -32,6 +36,19 @@ export function ImageDropzone({
     onFileChange(nextFile);
   };
 
+  const selectFiles = (nextFiles: File[]) => {
+    if (disabled) {
+      return;
+    }
+
+    if (onFilesChange) {
+      onFilesChange(nextFiles);
+      return;
+    }
+
+    selectFile(nextFiles[0] ?? null);
+  };
+
   const handleDrop = (event: DragEvent<HTMLButtonElement>) => {
     event.preventDefault();
     event.stopPropagation();
@@ -41,10 +58,12 @@ export function ImageDropzone({
     }
 
     setIsDragging(false);
-    selectFile(event.dataTransfer.files?.[0] ?? null);
+    selectFiles(Array.from(event.dataTransfer.files ?? []));
   };
 
-  const fileName = file?.name ?? "Chưa có file nào được chọn";
+  const fileName = Array.isArray(file)
+    ? `${file.length} file đã chọn`
+    : file?.name ?? "Chưa có file nào được chọn";
 
   return (
     <div className="space-y-2">
@@ -105,8 +124,10 @@ export function ImageDropzone({
         accept={accept}
         className="sr-only"
         id={id}
+        multiple={multiple}
         onChange={(event) => {
-          selectFile(event.target.files?.[0] ?? null);
+          const nextFiles = Array.from(event.target.files ?? []);
+          selectFiles(nextFiles);
           event.currentTarget.value = "";
         }}
         type="file"
