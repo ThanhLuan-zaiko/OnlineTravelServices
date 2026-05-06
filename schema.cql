@@ -504,6 +504,8 @@ CREATE TABLE IF NOT EXISTS tour_vehicles_by_tour (
 CREATE TABLE IF NOT EXISTS vehicle_catalog_by_bucket (
   catalog_bucket text,
   vehicle_catalog_id uuid,
+  archived_at timestamp,
+  archived_from_status text,
   image_url text,
   label text,
   vehicle_type text,
@@ -513,6 +515,19 @@ CREATE TABLE IF NOT EXISTS vehicle_catalog_by_bucket (
   thumbnail_url text,
   updated_at timestamp,
   PRIMARY KEY ((catalog_bucket), vehicle_catalog_id)
+);
+
+CREATE TABLE IF NOT EXISTS vehicle_catalog_media_by_catalog (
+  vehicle_catalog_id uuid,
+  media_order int,
+  media_id uuid,
+  media_url text,
+  thumbnail_url text,
+  title text,
+  uploaded_at timestamp,
+  uploaded_by uuid,
+  is_cover boolean,
+  PRIMARY KEY ((vehicle_catalog_id), media_order, media_id)
 );
 
 CREATE TABLE IF NOT EXISTS service_providers_by_type (

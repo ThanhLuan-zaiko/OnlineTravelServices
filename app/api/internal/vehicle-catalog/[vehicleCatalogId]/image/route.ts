@@ -18,7 +18,7 @@ type RouteContext = {
 export async function POST(request: Request, context: RouteContext) {
   try {
     assertSameOriginRequest(request);
-    await requireAdministrativeStaff(request);
+    const user = await requireAdministrativeStaff(request);
     const { vehicleCatalogId } = await context.params;
     const formData = await request.formData();
     const file = formData.get("file");
@@ -30,6 +30,7 @@ export async function POST(request: Request, context: RouteContext) {
     const catalogItem = await setInternalVehicleCatalogImage(vehicleCatalogId, {
       sourceBuffer: Buffer.from(await file.arrayBuffer()),
       sourceName: file.name,
+      uploadedBy: user.userId,
     });
 
     if (!catalogItem) {

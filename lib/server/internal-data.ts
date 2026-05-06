@@ -72,9 +72,17 @@ export {
   createInternalVehicleCatalog,
   clearInternalVehicleCatalogImage,
   deleteInternalVehicleCatalog,
+  addVehicleCatalogMedia,
+  archiveInternalVehicleCatalog,
+  deleteVehicleCatalogMedia,
+  findVehicleCatalogMedia,
+  hardDeleteInternalVehicleCatalog,
   setInternalVehicleCatalogImage,
+  listVehicleCatalogMedia,
   findInternalVehicleCatalog,
   listInternalVehicleCatalog,
+  restoreInternalVehicleCatalog,
+  setVehicleCatalogMediaCover,
   updateInternalVehicleCatalog,
 } from "@/lib/server/internal-data/vehicle-catalog";
 export { getRevenueDashboard } from "@/lib/server/internal-data/revenue";

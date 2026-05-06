@@ -25,6 +25,7 @@ import type {
   InternalTourMedia,
   InternalTourVehicle,
   InternalVehicleCatalogItem,
+  InternalVehicleCatalogMedia,
   ItineraryMutationRequest,
   DestinationMutationRequest,
   PromotionMutationRequest,
@@ -357,9 +358,86 @@ export async function updateInternalVehicleCatalog(vehicleCatalogId: string, inp
   return response.data;
 }
 
-export async function deleteInternalVehicleCatalog(vehicleCatalogId: string) {
+export async function archiveInternalVehicleCatalog(vehicleCatalogId: string) {
   const response = await apiClient.delete<{ catalogItem: InternalVehicleCatalogItem }>(
     `/internal/vehicle-catalog/${vehicleCatalogId}`,
+  );
+
+  return response.data;
+}
+
+export const deleteInternalVehicleCatalog = archiveInternalVehicleCatalog;
+
+export async function hardDeleteInternalVehicleCatalog(vehicleCatalogId: string) {
+  const response = await apiClient.delete<{ catalogItem: InternalVehicleCatalogItem; message: string }>(
+    `/internal/vehicle-catalog/${vehicleCatalogId}`,
+    {
+      params: { mode: "hard" },
+    },
+  );
+
+  return response.data;
+}
+
+export async function restoreInternalVehicleCatalog(vehicleCatalogId: string) {
+  const response = await apiClient.patch<{ catalogItem: InternalVehicleCatalogItem }>(
+    `/internal/vehicle-catalog/${vehicleCatalogId}/restore`,
+  );
+
+  return response.data;
+}
+
+export async function getInternalVehicleCatalogMedia(vehicleCatalogId: string) {
+  const response = await apiClient.get<{ media: InternalVehicleCatalogMedia[] }>(
+    `/internal/vehicle-catalog/${vehicleCatalogId}/media`,
+  );
+
+  return response.data;
+}
+
+export async function uploadInternalVehicleCatalogMedia(
+  vehicleCatalogId: string,
+  input: {
+    files: File[];
+    isCover?: boolean;
+    title?: string;
+  },
+) {
+  const formData = new FormData();
+
+  for (const file of input.files) {
+    formData.append("files", file);
+  }
+
+  formData.append("isCover", input.isCover ? "1" : "0");
+  if (input.title) {
+    formData.append("title", input.title);
+  }
+
+  const response = await apiClient.post<{ media: InternalVehicleCatalogMedia[] }>(
+    `/internal/vehicle-catalog/${vehicleCatalogId}/media`,
+    formData,
+    {
+      headers: {
+        "Content-Type": "multipart/form-data",
+      },
+    },
+  );
+
+  return response.data;
+}
+
+export async function deleteInternalVehicleCatalogMedia(vehicleCatalogId: string, mediaId: string) {
+  const response = await apiClient.delete<{ media: InternalVehicleCatalogMedia }>(
+    `/internal/vehicle-catalog/${vehicleCatalogId}/media/${mediaId}`,
+  );
+
+  return response.data;
+}
+
+export async function setInternalVehicleCatalogMediaCover(vehicleCatalogId: string, mediaId: string) {
+  const response = await apiClient.patch<{ media: InternalVehicleCatalogMedia }>(
+    `/internal/vehicle-catalog/${vehicleCatalogId}/media/${mediaId}/cover`,
   );
 
   return response.data;

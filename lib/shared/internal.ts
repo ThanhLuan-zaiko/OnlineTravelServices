@@ -102,7 +102,7 @@ export const serviceStatusSchema = z.enum(["archived", "draft", "published"]);
 export const serviceProviderStatusSchema = z.enum(["active", "inactive", "suspended"]);
 export const serviceContractStatusSchema = z.enum(["active", "draft", "expired"]);
 export const tourVehicleStatusSchema = z.enum(["active", "inactive", "maintenance"]);
-export const vehicleCatalogStatusSchema = z.enum(["active", "inactive"]);
+export const vehicleCatalogStatusSchema = z.enum(["active", "inactive", "archived"]);
 export const promotionStatusSchema = z.enum(["archived", "draft", "expired", "published", "scheduled"]);
 export const scheduleStatusSchema = z.enum(["cancelled", "closed", "open"]);
 
@@ -244,10 +244,25 @@ export const tourVehicleMutationSchema = z.object({
 });
 
 export const vehicleCatalogMutationSchema = z.object({
-  label: z.string().trim().min(2, "Vui lòng nhập tên phương tiện."),
-  vehicleType: z.string().trim().min(2, "Vui lòng nhập loại phương tiện."),
-  vehicleModel: z.string().trim().min(2, "Vui lòng nhập dòng xe."),
-  vehicleCapacity: z.coerce.number().int().positive("Sức chứa không hợp lệ."),
+  label: z
+    .string()
+    .trim()
+    .min(2, "Vui lòng nhập tên phương tiện.")
+    .max(120, "Tên phương tiện quá dài.")
+    .regex(/^[\p{L}\p{N}\s().,+/&-]+$/u, "Tên phương tiện có ký tự không hợp lệ."),
+  vehicleType: z
+    .string()
+    .trim()
+    .min(2, "Vui lòng nhập loại phương tiện.")
+    .max(50, "Loại phương tiện quá dài.")
+    .regex(/^[a-zA-Z0-9\s-]+$/, "Loại phương tiện chỉ gồm chữ, số, khoảng trắng và dấu gạch ngang."),
+  vehicleModel: z
+    .string()
+    .trim()
+    .min(2, "Vui lòng nhập dòng xe.")
+    .max(80, "Dòng xe quá dài.")
+    .regex(/^[\p{L}\p{N}\s().,+/&-]+$/u, "Dòng xe có ký tự không hợp lệ."),
+  vehicleCapacity: z.coerce.number().int("Sức chứa phải là số nguyên.").min(1, "Sức chứa phải lớn hơn 0.").max(120, "Sức chứa vượt giới hạn cho phép."),
   status: vehicleCatalogStatusSchema,
 });
 
@@ -318,9 +333,23 @@ export type InternalServiceProvider = ServiceProviderMutationRequest & {
 };
 
 export type InternalVehicleCatalogItem = VehicleCatalogMutationRequest & {
+  archivedAt: string | null;
+  archivedFromStatus: "active" | "inactive" | null;
   imageUrl: string | null;
   thumbnailUrl: string | null;
   updatedAt: string;
+  vehicleCatalogId: string;
+};
+
+export type InternalVehicleCatalogMedia = {
+  isCover: boolean;
+  mediaId: string;
+  mediaOrder: number;
+  mediaUrl: string;
+  thumbnailUrl: string;
+  title: string | null;
+  uploadedAt: string;
+  uploadedBy: string | null;
   vehicleCatalogId: string;
 };
 

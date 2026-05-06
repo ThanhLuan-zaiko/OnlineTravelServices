@@ -14,6 +14,7 @@ import type {
   InternalTourMedia,
   InternalTourVehicle,
   InternalVehicleCatalogItem,
+  InternalVehicleCatalogMedia,
 } from "@/lib/shared/internal";
 
 export const TOUR_LIST_STATUSES = ["published", "draft", "archived"] as const;
@@ -125,16 +126,30 @@ export type ServiceProviderRow = {
 };
 
 export type VehicleCatalogRow = {
+  archived_at: Date | null;
+  archived_from_status: "active" | "inactive" | null;
   catalog_bucket: string;
   image_url: string | null;
   label: string;
-  status: "active" | "inactive";
+  status: "active" | "inactive" | "archived";
   updated_at: Date;
   thumbnail_url: string | null;
   vehicle_capacity: number;
   vehicle_catalog_id: string;
   vehicle_model: string;
   vehicle_type: string;
+};
+
+export type VehicleCatalogMediaRow = {
+  is_cover: boolean | null;
+  media_id: string;
+  media_order: number;
+  media_url: string;
+  thumbnail_url: string;
+  title: string | null;
+  uploaded_at: Date;
+  uploaded_by: string | null;
+  vehicle_catalog_id: string;
 };
 
 export type TourMediaRow = {
@@ -333,6 +348,8 @@ export function toServiceProvider(row: ServiceProviderRow): InternalServiceProvi
 
 export function toVehicleCatalogItem(row: VehicleCatalogRow): InternalVehicleCatalogItem {
   return {
+    archivedAt: dateToIso(row.archived_at),
+    archivedFromStatus: row.archived_from_status,
     label: row.label,
     imageUrl: row.image_url,
     status: row.status,
@@ -342,6 +359,20 @@ export function toVehicleCatalogItem(row: VehicleCatalogRow): InternalVehicleCat
     vehicleCatalogId: String(row.vehicle_catalog_id),
     vehicleModel: row.vehicle_model,
     vehicleType: row.vehicle_type,
+  };
+}
+
+export function toVehicleCatalogMedia(row: VehicleCatalogMediaRow): InternalVehicleCatalogMedia {
+  return {
+    isCover: Boolean(row.is_cover),
+    mediaId: String(row.media_id),
+    mediaOrder: row.media_order,
+    mediaUrl: row.media_url,
+    thumbnailUrl: row.thumbnail_url,
+    title: row.title,
+    uploadedAt: row.uploaded_at.toISOString(),
+    uploadedBy: row.uploaded_by ? String(row.uploaded_by) : null,
+    vehicleCatalogId: String(row.vehicle_catalog_id),
   };
 }
 
