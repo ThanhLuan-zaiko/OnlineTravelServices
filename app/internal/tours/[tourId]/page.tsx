@@ -1,6 +1,5 @@
 import type { Metadata } from "next";
 
-import { InternalShell } from "@/components/internal/internal-shell";
 import { TourDetailManager } from "@/components/internal/tour-detail-manager";
 import { requireAdministrativeStaffPage } from "@/lib/server/internal-page";
 
@@ -18,11 +17,7 @@ type PageProps = {
 
 export default async function InternalTourDetailPage({ params }: PageProps) {
   const { tourId } = await params;
-  const user = await requireAdministrativeStaffPage(`/internal/tours/${tourId}`);
+  await requireAdministrativeStaffPage(`/internal/tours/${tourId}`);
 
-  return (
-    <InternalShell user={user}>
-      <TourDetailManager tourId={tourId} />
-    </InternalShell>
-  );
+  return <TourDetailManager tourId={tourId} />;
 }

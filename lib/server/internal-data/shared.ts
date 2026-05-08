@@ -7,9 +7,12 @@ import type {
   InternalDestinationMedia,
   InternalItineraryItem,
   InternalPromotion,
+  InternalPromotionMedia,
   InternalSchedule,
   InternalServiceCatalog,
+  InternalServiceMedia,
   InternalServiceProvider,
+  InternalServiceProviderMedia,
   InternalTour,
   InternalTourMedia,
   InternalTourVehicle,
@@ -100,29 +103,64 @@ export type DestinationMediaRow = {
 };
 
 export type ServiceCatalogRow = {
+  archived_at: Date | null;
+  archived_from_status: "draft" | "published" | null;
   base_price: unknown;
   currency: string;
   destination_id: string;
   description: string | null;
+  image_url: string | null;
   name: string;
   provider_id: string | null;
   service_id: string;
   service_type: string;
   status: "archived" | "draft" | "published";
+  thumbnail_url: string | null;
   updated_at: Date;
 };
 
+export type ServiceMediaRow = {
+  destination_id: string;
+  is_cover: boolean | null;
+  media_id: string;
+  media_order: number;
+  media_url: string;
+  service_id: string;
+  service_type: string;
+  thumbnail_url: string;
+  title: string | null;
+  uploaded_at: Date;
+  uploaded_by: string | null;
+};
+
 export type ServiceProviderRow = {
+  archived_at: Date | null;
+  archived_from_status: "active" | "inactive" | "suspended" | null;
   contract_status: "active" | "draft" | "expired";
   email: string;
+  image_url: string | null;
   phone: string;
   provider_id: string;
   provider_name: string;
   rating: unknown;
   region: string;
   service_type: string;
-  status: "active" | "inactive" | "suspended";
+  status: "active" | "inactive" | "suspended" | "archived";
+  thumbnail_url: string | null;
   updated_at: Date;
+};
+
+export type ServiceProviderMediaRow = {
+  is_cover: boolean | null;
+  media_id: string;
+  media_order: number;
+  media_url: string;
+  provider_id: string;
+  service_type: string;
+  thumbnail_url: string;
+  title: string | null;
+  uploaded_at: Date;
+  uploaded_by: string | null;
 };
 
 export type VehicleCatalogRow = {
@@ -205,6 +243,8 @@ export type ItineraryRow = {
 };
 
 export type PromotionRow = {
+  archived_at: Date | null;
+  archived_from_status: "draft" | "expired" | "published" | "scheduled" | null;
   code: string;
   created_by: string | null;
   customer_tier: string;
@@ -212,14 +252,28 @@ export type PromotionRow = {
   discount_type: "amount" | "percent";
   discount_value: unknown;
   end_at: Date;
+  image_url: string | null;
   max_discount_amount: unknown | null;
   promotion_id: string;
   promotion_type: string;
   start_at: Date;
   status: "archived" | "draft" | "expired" | "published" | "scheduled";
   title: string;
+  thumbnail_url: string | null;
   usage_limit: number;
   used_count: number | null;
+};
+
+export type PromotionMediaRow = {
+  is_cover: boolean | null;
+  media_id: string;
+  media_order: number;
+  media_url: string;
+  promotion_id: string;
+  thumbnail_url: string;
+  title: string | null;
+  uploaded_at: Date;
+  uploaded_by: string | null;
 };
 
 export function decimal(value: string) {
@@ -318,23 +372,46 @@ export function toDestinationMedia(row: DestinationMediaRow): InternalDestinatio
 
 export function toServiceCatalog(row: ServiceCatalogRow): InternalServiceCatalog {
   return {
+    archivedAt: dateToIso(row.archived_at),
+    archivedFromStatus: row.archived_from_status,
     basePrice: decimalToString(row.base_price),
     currency: row.currency,
     destinationId: String(row.destination_id),
     description: row.description,
+    imageUrl: row.image_url,
     name: row.name,
     providerId: row.provider_id ? String(row.provider_id) : null,
     serviceId: String(row.service_id),
     serviceType: row.service_type,
     status: row.status,
+    thumbnailUrl: row.thumbnail_url,
     updatedAt: row.updated_at.toISOString(),
+  };
+}
+
+export function toServiceMedia(row: ServiceMediaRow): InternalServiceMedia {
+  return {
+    destinationId: String(row.destination_id),
+    isCover: Boolean(row.is_cover),
+    mediaId: String(row.media_id),
+    mediaOrder: row.media_order,
+    mediaUrl: row.media_url,
+    serviceId: String(row.service_id),
+    serviceType: row.service_type,
+    thumbnailUrl: row.thumbnail_url,
+    title: row.title,
+    uploadedAt: row.uploaded_at.toISOString(),
+    uploadedBy: row.uploaded_by ? String(row.uploaded_by) : null,
   };
 }
 
 export function toServiceProvider(row: ServiceProviderRow): InternalServiceProvider {
   return {
+    archivedAt: dateToIso(row.archived_at),
+    archivedFromStatus: row.archived_from_status,
     contractStatus: row.contract_status,
     email: row.email,
+    imageUrl: row.image_url,
     phone: row.phone,
     providerId: String(row.provider_id),
     providerName: row.provider_name,
@@ -342,7 +419,23 @@ export function toServiceProvider(row: ServiceProviderRow): InternalServiceProvi
     region: row.region,
     serviceType: row.service_type,
     status: row.status,
+    thumbnailUrl: row.thumbnail_url,
     updatedAt: row.updated_at.toISOString(),
+  };
+}
+
+export function toServiceProviderMedia(row: ServiceProviderMediaRow): InternalServiceProviderMedia {
+  return {
+    isCover: Boolean(row.is_cover),
+    mediaId: String(row.media_id),
+    mediaOrder: row.media_order,
+    mediaUrl: row.media_url,
+    providerId: String(row.provider_id),
+    serviceType: row.service_type,
+    thumbnailUrl: row.thumbnail_url,
+    title: row.title,
+    uploadedAt: row.uploaded_at.toISOString(),
+    uploadedBy: row.uploaded_by ? String(row.uploaded_by) : null,
   };
 }
 
@@ -434,6 +527,8 @@ export function toItineraryItem(row: ItineraryRow): InternalItineraryItem {
 
 export function toPromotion(row: PromotionRow): InternalPromotion {
   return {
+    archivedAt: dateToIso(row.archived_at),
+    archivedFromStatus: row.archived_from_status,
     code: row.code,
     createdBy: row.created_by ? String(row.created_by) : null,
     customerTier: row.customer_tier,
@@ -441,13 +536,29 @@ export function toPromotion(row: PromotionRow): InternalPromotion {
     discountType: row.discount_type,
     discountValue: decimalToString(row.discount_value),
     endAt: row.end_at.toISOString(),
+    imageUrl: row.image_url,
     maxDiscountAmount: row.max_discount_amount ? decimalToString(row.max_discount_amount) : null,
     promotionId: String(row.promotion_id),
     promotionType: row.promotion_type,
     startAt: row.start_at.toISOString(),
     status: row.status,
+    thumbnailUrl: row.thumbnail_url,
     title: row.title,
     usageLimit: row.usage_limit,
     usedCount: row.used_count ?? 0,
+  };
+}
+
+export function toPromotionMedia(row: PromotionMediaRow): InternalPromotionMedia {
+  return {
+    isCover: Boolean(row.is_cover),
+    mediaId: String(row.media_id),
+    mediaOrder: row.media_order,
+    mediaUrl: row.media_url,
+    promotionId: String(row.promotion_id),
+    thumbnailUrl: row.thumbnail_url,
+    title: row.title,
+    uploadedAt: row.uploaded_at.toISOString(),
+    uploadedBy: row.uploaded_by ? String(row.uploaded_by) : null,
   };
 }

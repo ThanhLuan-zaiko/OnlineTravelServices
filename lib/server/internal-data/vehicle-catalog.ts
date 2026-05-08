@@ -4,7 +4,7 @@ import { rm } from "node:fs/promises";
 import path from "node:path";
 import { uuidv7 } from "uuidv7";
 
-import { executeQuery } from "@/lib/server/scylla";
+import { executePagedQuery, executeQuery } from "@/lib/server/scylla";
 import { storeImageAsset } from "@/lib/server/media-storage";
 import type { VehicleCatalogMutationRequest } from "@/lib/shared/internal";
 
@@ -17,6 +17,9 @@ import {
 
 const CATALOG_BUCKET = "all";
 const ACTIVE_RESTORE_STATUS = "inactive";
+const DEFAULT_VEHICLE_CATALOG_PAGE_SIZE = 8;
+const MAX_VEHICLE_CATALOG_PAGE_SIZE = 48;
+const SEARCH_SCAN_MULTIPLIER = 4;
 
 function vehicleCatalogColumns() {
   return `catalog_bucket, vehicle_catalog_id, archived_at, archived_from_status, image_url, label,
@@ -25,6 +28,26 @@ function vehicleCatalogColumns() {
 
 function toAbsolutePublicPath(publicUrl: string) {
   return path.join(process.cwd(), "public", publicUrl.replace(/^\/+/, ""));
+}
+
+function clampVehicleCatalogPageSize(limit?: number) {
+  if (!limit || !Number.isFinite(limit)) {
+    return DEFAULT_VEHICLE_CATALOG_PAGE_SIZE;
+  }
+
+  return Math.min(Math.max(Math.trunc(limit), 1), MAX_VEHICLE_CATALOG_PAGE_SIZE);
+}
+
+function vehicleCatalogMatchesSearch(item: ReturnType<typeof toVehicleCatalogItem>, query?: string) {
+  const normalizedQuery = query?.trim().toLowerCase();
+
+  if (!normalizedQuery) {
+    return true;
+  }
+
+  return [item.label, item.vehicleType, item.vehicleModel, item.vehicleCatalogId].some((value) =>
+    value.toLowerCase().includes(normalizedQuery),
+  );
 }
 
 async function findNextCover(vehicleCatalogId: string) {
@@ -60,6 +83,47 @@ export async function listInternalVehicleCatalog(status?: string) {
     .sort((left, right) => right.updatedAt.localeCompare(left.updatedAt));
 
   return catalog;
+}
+
+export async function listInternalVehicleCatalogPage(
+  status: "active" | "inactive" | "archived" | undefined,
+  options?: {
+    cursor?: string | null;
+    limit?: number;
+    query?: string;
+  },
+) {
+  const limit = clampVehicleCatalogPageSize(options?.limit);
+  const query = options?.query?.trim();
+  const fetchSize = query ? Math.min(limit * SEARCH_SCAN_MULTIPLIER, MAX_VEHICLE_CATALOG_PAGE_SIZE * SEARCH_SCAN_MULTIPLIER) : limit;
+  const catalog: ReturnType<typeof toVehicleCatalogItem>[] = [];
+  let pageState: string | Buffer | null = options?.cursor ?? null;
+
+  do {
+    const page: { pageState: string | Buffer | null; rows: VehicleCatalogRow[] } = await executePagedQuery<VehicleCatalogRow>(
+      `SELECT ${vehicleCatalogColumns()}
+       FROM vehicle_catalog_by_bucket
+       WHERE catalog_bucket = ?`,
+      [CATALOG_BUCKET],
+      {
+        fetchSize,
+        pageState,
+      },
+    );
+
+    pageState = page.pageState;
+    catalog.push(
+      ...page.rows
+        .map(toVehicleCatalogItem)
+        .filter((item) => (status ? item.status === status : item.status !== "archived"))
+        .filter((item) => vehicleCatalogMatchesSearch(item, query)),
+    );
+  } while (catalog.length < limit && pageState);
+
+  return {
+    catalog: catalog.slice(0, limit),
+    nextCursor: pageState ? String(pageState) : null,
+  };
 }
 
 export async function findInternalVehicleCatalog(vehicleCatalogId: string) {

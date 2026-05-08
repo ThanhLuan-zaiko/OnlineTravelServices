@@ -534,28 +534,65 @@ CREATE TABLE IF NOT EXISTS service_providers_by_type (
   service_type text,
   status text,
   provider_id uuid,
+  archived_at timestamp,
+  archived_from_status text,
+  image_url text,
   provider_name text,
   region text,
   phone text,
   email text,
   rating decimal,
   contract_status text,
+  thumbnail_url text,
   updated_at timestamp,
   PRIMARY KEY ((service_type), status, provider_id)
+);
+
+CREATE TABLE IF NOT EXISTS service_provider_media_by_provider (
+  service_type text,
+  provider_id uuid,
+  media_order int,
+  media_id uuid,
+  media_url text,
+  thumbnail_url text,
+  title text,
+  uploaded_at timestamp,
+  uploaded_by uuid,
+  is_cover boolean,
+  PRIMARY KEY ((service_type, provider_id), media_order, media_id)
 );
 
 CREATE TABLE IF NOT EXISTS service_catalog_by_destination (
   destination_id uuid,
   service_type text,
   service_id uuid,
+  archived_at timestamp,
+  archived_from_status text,
   provider_id uuid,
+  image_url text,
   name text,
   description text,
   base_price decimal,
   currency text,
   status text,
+  thumbnail_url text,
   updated_at timestamp,
   PRIMARY KEY ((destination_id), service_type, service_id)
+);
+
+CREATE TABLE IF NOT EXISTS service_media_by_service (
+  destination_id uuid,
+  service_type text,
+  service_id uuid,
+  media_order int,
+  media_id uuid,
+  media_url text,
+  thumbnail_url text,
+  title text,
+  uploaded_at timestamp,
+  uploaded_by uuid,
+  is_cover boolean,
+  PRIMARY KEY ((destination_id, service_type, service_id), media_order, media_id)
 );
 
 CREATE TABLE IF NOT EXISTS tour_price_history (
@@ -851,9 +888,12 @@ CREATE TABLE IF NOT EXISTS tour_rating_summary (
 
 CREATE TABLE IF NOT EXISTS promotions_by_id (
   promotion_id uuid,
+  archived_at timestamp,
+  archived_from_status text,
   code text,
   title text,
   description text,
+  image_url text,
   status text,
   promotion_type text,
   customer_tier text,
@@ -865,7 +905,21 @@ CREATE TABLE IF NOT EXISTS promotions_by_id (
   usage_limit int,
   used_count int,
   created_by uuid,
+  thumbnail_url text,
   PRIMARY KEY ((promotion_id))
+);
+
+CREATE TABLE IF NOT EXISTS promotion_media_by_promotion (
+  promotion_id uuid,
+  media_order int,
+  media_id uuid,
+  media_url text,
+  thumbnail_url text,
+  title text,
+  uploaded_at timestamp,
+  uploaded_by uuid,
+  is_cover boolean,
+  PRIMARY KEY ((promotion_id), media_order, media_id)
 );
 
 CREATE TABLE IF NOT EXISTS promotions_by_status (

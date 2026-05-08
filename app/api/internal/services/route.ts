@@ -1,8 +1,8 @@
 import { requireAdministrativeStaff } from "@/lib/server/internal-auth";
 import { internalErrorResponse, internalJson } from "@/lib/server/internal-api";
-import { createInternalService, listInternalDestinations, listInternalServices } from "@/lib/server/internal-data";
+import { createInternalService, listInternalDestinations, listInternalServices, listInternalServicesPage } from "@/lib/server/internal-data";
 import { assertSameOriginRequest } from "@/lib/server/request-security";
-import { serviceCatalogMutationSchema } from "@/lib/shared/internal";
+import { serviceCatalogMutationSchema, serviceStatusSchema } from "@/lib/shared/internal";
 
 export const dynamic = "force-dynamic";
 export const runtime = "nodejs";
@@ -12,13 +12,27 @@ export async function GET(request: Request) {
     await requireAdministrativeStaff(request);
     const { searchParams } = new URL(request.url);
     const destinationId = searchParams.get("destinationId")?.trim();
+    const statusParam = searchParams.get("status") ?? undefined;
+    const cursor = searchParams.get("cursor") ?? undefined;
+    const limitParam = searchParams.get("limit") ?? undefined;
+    const query = searchParams.get("q") ?? undefined;
 
     if (!destinationId) {
       return internalJson({ destinations: [], services: [] });
     }
 
+    const status = statusParam ? serviceStatusSchema.parse(statusParam) : undefined;
+    const parsedLimit = limitParam ? Number.parseInt(limitParam, 10) : undefined;
+    const limit = Number.isFinite(parsedLimit) && (parsedLimit as number) > 0 ? parsedLimit : undefined;
+
+    if (status && (cursor !== undefined || limit !== undefined || query !== undefined)) {
+      const page = await listInternalServicesPage(destinationId, status, { cursor, limit, query });
+
+      return internalJson(page);
+    }
+
     const [services, destinations] = await Promise.all([
-      listInternalServices(destinationId),
+      listInternalServices(destinationId, status),
       listInternalDestinations(),
     ]);
 

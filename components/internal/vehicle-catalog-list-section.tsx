@@ -3,6 +3,7 @@
 import Image from "next/image";
 import { FiImage, FiSearch, FiTrash2 } from "react-icons/fi";
 
+import { PaginationControl } from "@/components/ui/pagination-control";
 import { SelectField } from "@/components/ui/select-field";
 import type { InternalVehicleCatalogItem } from "@/lib/shared/internal";
 
@@ -12,37 +13,83 @@ import { imageFolderLabel } from "./vehicle-catalog-types";
 export function VehicleListSection({
   catalog,
   deletePending,
+  hardDeletePending,
+  hasNextPage,
+  hasPreviousPage,
+  currentPage,
   isLoading,
+  isPaging,
   onDelete,
   onEdit,
+  onHardDelete,
+  onJumpToPage,
   onManageImage,
+  onNextPage,
+  onPreviousPage,
+  pageSize,
   searchQuery,
+  setPageSize,
   setSearchQuery,
   setStatus,
   status,
 }: {
   catalog: InternalVehicleCatalogItem[];
   deletePending: boolean;
+  hardDeletePending: boolean;
+  hasNextPage: boolean;
+  hasPreviousPage: boolean;
+  currentPage: number;
   isLoading: boolean;
+  isPaging: boolean;
   onDelete: (item: InternalVehicleCatalogItem) => void;
   onEdit: (item: InternalVehicleCatalogItem) => void;
+  onHardDelete: (item: InternalVehicleCatalogItem) => void;
+  onJumpToPage: (page: number) => void;
   onManageImage: (item: InternalVehicleCatalogItem) => void;
+  onNextPage: () => void;
+  onPreviousPage: () => void;
+  pageSize: number;
   searchQuery: string;
+  setPageSize: (value: number) => void;
   setSearchQuery: (value: string) => void;
   setStatus: (value: string) => void;
   status: string;
 }) {
   return (
     <InternalPanel className="p-4">
-      <VehicleFilters searchQuery={searchQuery} setSearchQuery={setSearchQuery} setStatus={setStatus} status={status} />
+      <VehicleFilters
+        pageSize={pageSize}
+        searchQuery={searchQuery}
+        setPageSize={setPageSize}
+        setSearchQuery={setSearchQuery}
+        setStatus={setStatus}
+        status={status}
+      />
       <VehicleCards
         catalog={catalog}
         deletePending={deletePending}
+        hardDeletePending={hardDeletePending}
         emptyMessage={isLoading ? "Đang tải danh mục phương tiện..." : "Không tìm thấy phương tiện phù hợp."}
         onDelete={onDelete}
         onEdit={onEdit}
+        onHardDelete={onHardDelete}
         onManageImage={onManageImage}
       />
+      {catalog.length > 0 ? (
+        <div className="mt-4 flex flex-wrap items-center justify-between gap-3 border-t border-slate-200 pt-4 dark:border-neutral-800">
+          <PaginationControl
+            canGoNext={hasNextPage}
+            canGoPrevious={hasPreviousPage}
+            currentPage={currentPage}
+            disabled={isPaging}
+            itemLabel="phương tiện"
+            onGoNext={onNextPage}
+            onGoPrevious={onPreviousPage}
+            onPageSubmit={onJumpToPage}
+            pageSize={pageSize}
+          />
+        </div>
+      ) : null}
     </InternalPanel>
   );
 }
@@ -86,16 +133,27 @@ export function SearchInput({
 }
 
 function VehicleFilters({
+  pageSize,
   searchQuery,
+  setPageSize,
   setSearchQuery,
   setStatus,
   status,
 }: {
+  pageSize: number;
   searchQuery: string;
+  setPageSize: (value: number) => void;
   setSearchQuery: (value: string) => void;
   setStatus: (value: string) => void;
   status: string;
 }) {
+  const pageSizeOptions = [
+    { label: "6 items", value: "6" },
+    { label: "8 items", value: "8" },
+    { label: "12 items", value: "12" },
+    { label: "24 items", value: "24" },
+  ];
+
   return (
     <div className="flex flex-col gap-4">
       <div className="flex flex-col gap-2 sm:flex-row sm:items-end sm:justify-between">
@@ -105,19 +163,30 @@ function VehicleFilters({
             Quản lý CRUD, thumbnail và xóa mềm theo từng nhóm phương tiện.
           </p>
         </div>
-        <SelectField
-          buttonClassName="h-10 px-3 text-sm font-semibold"
-          className="min-w-[180px]"
-          label="Trạng thái"
-          name="vehicle-catalog-filter-status"
-          onValueChange={setStatus}
-          options={[
-            { label: "active", value: "active" },
-            { label: "inactive", value: "inactive" },
-          ]}
-          placeholder="Tất cả"
-          value={status}
-        />
+        <div className="grid gap-3 sm:grid-cols-2">
+          <SelectField
+            buttonClassName="h-10 px-3 text-sm font-semibold"
+            className="min-w-[180px]"
+            label="Trạng thái"
+            name="vehicle-catalog-filter-status"
+            onValueChange={setStatus}
+            options={[
+              { label: "active", value: "active" },
+              { label: "inactive", value: "inactive" },
+            ]}
+            placeholder="Chọn trạng thái"
+            value={status}
+          />
+          <SelectField
+            buttonClassName="h-10 px-3 text-sm font-semibold"
+            label="Số item/trang"
+            name="vehicle-catalog-page-size"
+            onValueChange={(value) => setPageSize(Number(value))}
+            options={pageSizeOptions}
+            placeholder="Số item"
+            value={String(pageSize)}
+          />
+        </div>
       </div>
 
       <SearchInput searchQuery={searchQuery} setSearchQuery={setSearchQuery} wide />
@@ -128,16 +197,20 @@ function VehicleFilters({
 function VehicleCards({
   catalog,
   deletePending,
+  hardDeletePending,
   emptyMessage,
   onDelete,
   onEdit,
+  onHardDelete,
   onManageImage,
 }: {
   catalog: InternalVehicleCatalogItem[];
   deletePending: boolean;
+  hardDeletePending: boolean;
   emptyMessage: string;
   onDelete: (item: InternalVehicleCatalogItem) => void;
   onEdit: (item: InternalVehicleCatalogItem) => void;
+  onHardDelete: (item: InternalVehicleCatalogItem) => void;
   onManageImage: (item: InternalVehicleCatalogItem) => void;
 }) {
   if (catalog.length === 0) {
@@ -214,13 +287,22 @@ function VehicleCards({
                   Ảnh
                 </button>
                 <button
-                  className="inline-flex h-9 items-center gap-2 rounded-lg border border-rose-200 px-3 text-xs font-semibold text-rose-700 transition hover:bg-rose-50 disabled:cursor-not-allowed disabled:opacity-70 dark:border-rose-950 dark:text-rose-300 dark:hover:bg-rose-950/40"
+                  className="inline-flex h-9 items-center gap-2 rounded-lg border border-amber-200 px-3 text-xs font-semibold text-amber-700 transition hover:bg-amber-50 disabled:cursor-not-allowed disabled:opacity-70 dark:border-amber-950 dark:text-amber-300 dark:hover:bg-amber-950/40"
                   disabled={deletePending}
                   onClick={() => onDelete(item)}
                   type="button"
                 >
                   <FiTrash2 size={14} />
-                  Lưu trữ
+                  Soft delete
+                </button>
+                <button
+                  className="inline-flex h-9 items-center gap-2 rounded-lg border border-rose-200 px-3 text-xs font-semibold text-rose-700 transition hover:bg-rose-50 disabled:cursor-not-allowed disabled:opacity-70 dark:border-rose-950 dark:text-rose-300 dark:hover:bg-rose-950/40"
+                  disabled={hardDeletePending}
+                  onClick={() => onHardDelete(item)}
+                  type="button"
+                >
+                  <FiTrash2 size={14} />
+                  Hard delete
                 </button>
               </div>
             </div>

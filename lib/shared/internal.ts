@@ -99,7 +99,7 @@ export const internalAccountProfileRequestSchema = z
 export const tourStatusSchema = z.enum(["archived", "draft", "published"]);
 export const destinationStatusSchema = z.enum(["archived", "draft", "published"]);
 export const serviceStatusSchema = z.enum(["archived", "draft", "published"]);
-export const serviceProviderStatusSchema = z.enum(["active", "inactive", "suspended"]);
+export const serviceProviderStatusSchema = z.enum(["active", "inactive", "suspended", "archived"]);
 export const serviceContractStatusSchema = z.enum(["active", "draft", "expired"]);
 export const tourVehicleStatusSchema = z.enum(["active", "inactive", "maintenance"]);
 export const vehicleCatalogStatusSchema = z.enum(["active", "inactive", "archived"]);
@@ -297,8 +297,12 @@ export type InternalSchedule = ScheduleMutationRequest & {
 export type InternalItineraryItem = Required<ItineraryMutationRequest>;
 
 export type InternalPromotion = PromotionMutationRequest & {
+  archivedAt: string | null;
+  archivedFromStatus: "draft" | "expired" | "published" | "scheduled" | null;
   createdBy: string | null;
+  imageUrl: string | null;
   promotionId: string;
+  thumbnailUrl: string | null;
   usedCount: number;
 };
 
@@ -323,13 +327,60 @@ export type InternalDestinationMedia = {
 };
 
 export type InternalServiceCatalog = ServiceCatalogMutationRequest & {
+  archivedAt: string | null;
+  archivedFromStatus: "draft" | "published" | null;
+  imageUrl: string | null;
   serviceId: string;
+  thumbnailUrl: string | null;
   updatedAt: string;
 };
 
+export type InternalServiceMedia = {
+  destinationId: string;
+  isCover: boolean;
+  mediaId: string;
+  mediaOrder: number;
+  mediaUrl: string;
+  serviceId: string;
+  serviceType: string;
+  thumbnailUrl: string;
+  title: string | null;
+  uploadedAt: string;
+  uploadedBy: string | null;
+};
+
+export type InternalPromotionMedia = {
+  isCover: boolean;
+  mediaId: string;
+  mediaOrder: number;
+  mediaUrl: string;
+  promotionId: string;
+  thumbnailUrl: string;
+  title: string | null;
+  uploadedAt: string;
+  uploadedBy: string | null;
+};
+
 export type InternalServiceProvider = ServiceProviderMutationRequest & {
+  archivedAt: string | null;
+  archivedFromStatus: "active" | "inactive" | "suspended" | null;
+  imageUrl: string | null;
   providerId: string;
+  thumbnailUrl: string | null;
   updatedAt: string;
+};
+
+export type InternalServiceProviderMedia = {
+  isCover: boolean;
+  mediaId: string;
+  mediaOrder: number;
+  mediaUrl: string;
+  providerId: string;
+  serviceType: string;
+  thumbnailUrl: string;
+  title: string | null;
+  uploadedAt: string;
+  uploadedBy: string | null;
 };
 
 export type InternalVehicleCatalogItem = VehicleCatalogMutationRequest & {

@@ -24,9 +24,17 @@ export {
 } from "@/lib/server/internal-data/tour-media";
 export {
   archiveInternalPromotion,
+  addPromotionMedia,
   createInternalPromotion,
+  deletePromotionMedia,
   findInternalPromotion,
+  findPromotionMedia,
+  hardDeleteInternalPromotion,
+  listPromotionMedia,
   listInternalPromotions,
+  listInternalPromotionsPage,
+  restoreInternalPromotion,
+  setPromotionMediaCover,
   updateInternalPromotion,
 } from "@/lib/server/internal-data/promotions";
 export {
@@ -38,7 +46,10 @@ export {
   archiveInternalTour,
   createInternalTour,
   findInternalTour,
+  hardDeleteInternalTour,
   listInternalTours,
+  listInternalToursPage,
+  restoreInternalTour,
   updateInternalTour,
 } from "@/lib/server/internal-data/tours";
 export {
@@ -55,17 +66,36 @@ export {
   updateTourVehicle,
 } from "@/lib/server/internal-data/tour-vehicles";
 export {
+  addServiceMedia,
+  archiveInternalService,
   createInternalService,
+  deleteServiceMedia,
   deleteInternalService,
   findInternalService,
+  findServiceMedia,
+  hardDeleteInternalService,
+  listServiceMedia,
   listInternalServices,
+  listInternalServicesPage,
+  restoreInternalService,
+  setServiceMediaCover,
   updateInternalService,
 } from "@/lib/server/internal-data/services";
 export {
+  addServiceProviderMedia,
+  archiveInternalServiceProvider,
   createInternalServiceProvider,
+  deleteServiceProviderMedia,
   deleteInternalServiceProvider,
+  findInternalServiceProviderById,
+  findServiceProviderMedia,
+  hardDeleteInternalServiceProvider,
   findInternalServiceProvider,
+  listServiceProviderMedia,
   listInternalServiceProviders,
+  listInternalServiceProvidersPage,
+  restoreInternalServiceProvider,
+  setServiceProviderMediaCover,
   updateInternalServiceProvider,
 } from "@/lib/server/internal-data/service-providers";
 export {
@@ -81,6 +111,7 @@ export {
   listVehicleCatalogMedia,
   findInternalVehicleCatalog,
   listInternalVehicleCatalog,
+  listInternalVehicleCatalogPage,
   restoreInternalVehicleCatalog,
   setVehicleCatalogMediaCover,
   updateInternalVehicleCatalog,

@@ -5,6 +5,7 @@ import { requireAdministrativeStaff } from "@/lib/server/internal-auth";
 import { internalErrorResponse, internalJson } from "@/lib/server/internal-api";
 import {
   archiveInternalVehicleCatalog,
+  findInternalVehicleCatalog,
   updateInternalVehicleCatalog,
   hardDeleteInternalVehicleCatalog,
 } from "@/lib/server/internal-data";
@@ -37,6 +38,24 @@ async function removeVehicleCatalogFolder(vehicleCatalogId: string) {
     force: true,
     recursive: true,
   });
+}
+
+export async function GET(request: Request, context: RouteContext) {
+  try {
+    await requireAdministrativeStaff(request);
+    const { vehicleCatalogId } = await context.params;
+    const catalogItem = await findInternalVehicleCatalog(vehicleCatalogId);
+
+    if (!catalogItem) {
+      return internalJson({ message: "Không tìm thấy phương tiện." }, { status: 404 });
+    }
+
+    return internalJson({ catalogItem });
+  } catch (error) {
+    return internalErrorResponse(error, "Không thể tải phương tiện.", {
+      route: "/api/internal/vehicle-catalog/[vehicleCatalogId]#GET",
+    });
+  }
 }
 
 export async function PATCH(request: Request, context: RouteContext) {

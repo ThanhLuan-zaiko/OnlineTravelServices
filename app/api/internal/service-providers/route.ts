@@ -1,8 +1,8 @@
 import { requireAdministrativeStaff } from "@/lib/server/internal-auth";
 import { internalErrorResponse, internalJson } from "@/lib/server/internal-api";
-import { createInternalServiceProvider, listInternalServiceProviders } from "@/lib/server/internal-data";
+import { createInternalServiceProvider, listInternalServiceProviders, listInternalServiceProvidersPage } from "@/lib/server/internal-data";
 import { assertSameOriginRequest } from "@/lib/server/request-security";
-import { serviceProviderMutationSchema } from "@/lib/shared/internal";
+import { serviceProviderMutationSchema, serviceProviderStatusSchema } from "@/lib/shared/internal";
 
 export const dynamic = "force-dynamic";
 export const runtime = "nodejs";
@@ -12,12 +12,30 @@ export async function GET(request: Request) {
     await requireAdministrativeStaff(request);
     const { searchParams } = new URL(request.url);
     const serviceType = searchParams.get("serviceType")?.trim();
+    const statusParam = searchParams.get("status") ?? undefined;
+    const cursor = searchParams.get("cursor") ?? undefined;
+    const limitParam = searchParams.get("limit") ?? undefined;
+    const query = searchParams.get("q") ?? undefined;
 
     if (!serviceType) {
       return internalJson({ providers: [] });
     }
 
-    const providers = await listInternalServiceProviders(serviceType);
+    const status = statusParam ? serviceProviderStatusSchema.parse(statusParam) : undefined;
+    const parsedLimit = limitParam ? Number.parseInt(limitParam, 10) : undefined;
+    const limit = Number.isFinite(parsedLimit) && (parsedLimit as number) > 0 ? parsedLimit : undefined;
+
+    if (status && (cursor !== undefined || limit !== undefined || query !== undefined)) {
+      const page = await listInternalServiceProvidersPage(serviceType, status, {
+        cursor,
+        limit,
+        query,
+      });
+
+      return internalJson(page);
+    }
+
+    const providers = await listInternalServiceProviders(serviceType, status);
     return internalJson({ providers });
   } catch (error) {
     return internalErrorResponse(error, "Không thể tải danh sách nhà cung cấp.", {

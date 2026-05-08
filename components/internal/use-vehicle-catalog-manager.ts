@@ -10,6 +10,7 @@ import {
   createInternalVehicleCatalog,
   deleteInternalVehicleCatalogMedia,
   getInternalVehicleCatalog,
+  getInternalVehicleCatalogPage,
   getInternalVehicleCatalogMedia,
   hardDeleteInternalVehicleCatalog,
   restoreInternalVehicleCatalog,
@@ -26,6 +27,7 @@ import {
 } from "@/lib/shared/internal";
 
 import { useInternalUnsavedChanges } from "./internal-shell";
+import { useVehicleCursorPage } from "./use-vehicle-cursor-page";
 
 export type VehicleCatalogTab = "list" | "manage" | "media";
 
@@ -64,27 +66,24 @@ function toVehicleCatalogValidationErrors(issues: { path: PropertyKey[]; message
   }, {});
 }
 
-function normalizeSearch(value: string) {
-  return value.trim().toLowerCase();
-}
-
-function itemMatchesSearch(item: InternalVehicleCatalogItem, searchQuery: string) {
-  const query = normalizeSearch(searchQuery);
-
-  if (!query) {
-    return true;
-  }
-
-  return [item.label, item.vehicleType, item.vehicleModel, item.vehicleCatalogId].some((value) => value.toLowerCase().includes(query));
-}
-
 export function useVehicleCatalogManager() {
   const queryClient = useQueryClient();
   const router = useRouter();
   const { showToast } = useToast();
   const { setIsDirty } = useInternalUnsavedChanges();
-  const [status, setStatus] = useState("");
-  const [searchQuery, setSearchQuery] = useState("");
+  const listPagination = useVehicleCursorPage({
+    initialStatus: "active",
+    missingNextMessage: "Không có trang phương tiện sau để chuyển tới.",
+    missingPageMessage: (page) => `Chỉ tìm thấy đến trang phương tiện ${page}.`,
+    showToast,
+  });
+  const archivedPagination = useVehicleCursorPage({
+    fixedStatus: "archived",
+    initialStatus: "archived",
+    missingNextMessage: "Không có trang lưu trữ sau để chuyển tới.",
+    missingPageMessage: (page) => `Chỉ tìm thấy đến trang lưu trữ ${page}.`,
+    showToast,
+  });
   const [editingItem, setEditingItem] = useState<InternalVehicleCatalogItem | null>(null);
   const [form, setForm] = useState<VehicleCatalogMutationRequest>(initialForm);
   const [savedForm, setSavedForm] = useState<VehicleCatalogMutationRequest>(initialForm);
@@ -115,12 +114,49 @@ export function useVehicleCatalogManager() {
   };
 
   const catalogQuery = useQuery({
-    queryKey: ["internal", "vehicle-catalog", status] as const,
-    queryFn: () => getInternalVehicleCatalog(status || undefined),
+    queryKey: [
+      "internal",
+      "vehicle-catalog",
+      "page",
+      listPagination.status,
+      listPagination.cursor,
+      listPagination.pageSize,
+      listPagination.searchQuery,
+    ] as const,
+    queryFn: () =>
+      getInternalVehicleCatalogPage({
+        cursor: listPagination.cursor ?? undefined,
+        limit: listPagination.pageSize,
+        q: listPagination.searchQuery,
+        status: listPagination.status,
+      }),
   });
 
   const archivedCatalogQuery = useQuery({
-    queryKey: ["internal", "vehicle-catalog", "archived"] as const,
+    queryKey: [
+      "internal",
+      "vehicle-catalog",
+      "archived",
+      archivedPagination.cursor,
+      archivedPagination.pageSize,
+      archivedPagination.searchQuery,
+    ] as const,
+    queryFn: () =>
+      getInternalVehicleCatalogPage({
+        cursor: archivedPagination.cursor ?? undefined,
+        limit: archivedPagination.pageSize,
+        q: archivedPagination.searchQuery,
+        status: "archived",
+      }),
+  });
+
+  const statsCatalogQuery = useQuery({
+    queryKey: ["internal", "vehicle-catalog", "stats", "active-inactive"] as const,
+    queryFn: () => getInternalVehicleCatalog(),
+  });
+
+  const statsArchivedCatalogQuery = useQuery({
+    queryKey: ["internal", "vehicle-catalog", "stats", "archived"] as const,
     queryFn: () => getInternalVehicleCatalog("archived"),
   });
 
@@ -360,22 +396,21 @@ export function useVehicleCatalogManager() {
 
   const queryCatalog = catalogQuery.data?.catalog;
   const archivedQueryCatalog = archivedCatalogQuery.data?.catalog;
+  const statsQueryCatalog = statsCatalogQuery.data?.catalog;
+  const statsArchivedQueryCatalog = statsArchivedCatalogQuery.data?.catalog;
   const catalog = useMemo(() => queryCatalog ?? [], [queryCatalog]);
   const archivedCatalog = useMemo(() => archivedQueryCatalog ?? [], [archivedQueryCatalog]);
-  const visibleCatalog = useMemo(() => catalog.filter((item) => itemMatchesSearch(item, searchQuery)), [catalog, searchQuery]);
-  const visibleArchivedCatalog = useMemo(
-    () => archivedCatalog.filter((item) => itemMatchesSearch(item, searchQuery)),
-    [archivedCatalog, searchQuery],
-  );
+  const statsCatalog = useMemo(() => statsQueryCatalog ?? [], [statsQueryCatalog]);
+  const statsArchivedCatalog = useMemo(() => statsArchivedQueryCatalog ?? [], [statsArchivedQueryCatalog]);
   const media = useMemo(() => mediaQuery.data?.media ?? [], [mediaQuery.data?.media]);
   const stats = useMemo(() => {
-    const active = catalog.filter((item) => item.status === "active").length;
-    const inactive = catalog.filter((item) => item.status === "inactive").length;
-    const withImage = catalog.filter((item) => item.imageUrl).length;
-    const totalCapacity = catalog.reduce((sum, item) => sum + item.vehicleCapacity, 0);
+    const active = statsCatalog.filter((item) => item.status === "active").length;
+    const inactive = statsCatalog.filter((item) => item.status === "inactive").length;
+    const withImage = statsCatalog.filter((item) => item.imageUrl).length;
+    const totalCapacity = statsCatalog.reduce((sum, item) => sum + item.vehicleCapacity, 0);
 
-    return { active, archived: archivedCatalog.length, inactive, total: catalog.length, totalCapacity, withImage };
-  }, [archivedCatalog.length, catalog]);
+    return { active, archived: statsArchivedCatalog.length, inactive, total: statsCatalog.length, totalCapacity, withImage };
+  }, [statsArchivedCatalog.length, statsCatalog]);
 
   const hasUnsavedChanges =
     JSON.stringify({
@@ -402,7 +437,7 @@ export function useVehicleCatalogManager() {
     [selectedFilePreviews],
   );
 
-  const startEdit = (item: InternalVehicleCatalogItem, nextTab: VehicleCatalogTab = "manage") => {
+  const startEdit = (item: InternalVehicleCatalogItem, nextTab: VehicleCatalogTab = "manage", options?: { preserveUrl?: boolean }) => {
     const nextForm = buildForm(item);
 
     setEditingItem(item);
@@ -410,7 +445,9 @@ export function useVehicleCatalogManager() {
     setSavedForm(nextForm);
     setFormErrors({});
     setVehicleImageFiles([]);
-    router.push(`/internal/vehicle-catalog/${nextTab}`);
+    if (!options?.preserveUrl) {
+      router.push(`/internal/vehicle-catalog/${nextTab}`);
+    }
   };
 
   const resetForm = () => {
@@ -463,7 +500,14 @@ export function useVehicleCatalogManager() {
     resetForm,
     restoreMutation,
     saveMutation,
-    searchQuery,
+    archivedCatalogNextCursor: archivedCatalogQuery.data?.nextCursor ?? null,
+    archivedPageSize: archivedPagination.pageSize,
+    archivedSearchQuery: archivedPagination.searchQuery,
+    canGoToPreviousArchivedCatalogPage: archivedPagination.canGoToPreviousPage,
+    canGoToPreviousCatalogPage: listPagination.canGoToPreviousPage,
+    catalogNextCursor: catalogQuery.data?.nextCursor ?? null,
+    currentArchivedCatalogPage: archivedPagination.currentPage,
+    currentCatalogPage: listPagination.currentPage,
     selectedFile: selectedFiles[0] ?? null,
     selectedFilePreviewUrl: selectedFilePreviews[0]?.previewUrl ?? null,
     selectedFilePreviews,
@@ -475,15 +519,28 @@ export function useVehicleCatalogManager() {
     setPendingDeleteMedia,
     setPendingHardDeleteItem,
     setPendingRestoreItem,
-    setSearchQuery,
+    setArchivedPageSize: archivedPagination.setPageSize,
+    setArchivedSearchQuery: archivedPagination.setSearchQuery,
+    setPageSize: listPagination.setPageSize,
+    setSearchQuery: listPagination.setSearchQuery,
     setSelectedFile: setVehicleImageFile,
     setSelectedFiles: setVehicleImageFiles,
-    setStatus,
+    setStatus: listPagination.setStatus,
     startEdit,
     stats,
-    status,
+    status: listPagination.status,
     uploadImageMutation,
-    visibleArchivedCatalog,
-    visibleCatalog,
+    isArchivedPaging: archivedCatalogQuery.isFetching || archivedPagination.isPageJumping,
+    isPaging: catalogQuery.isFetching || listPagination.isPageJumping,
+    onJumpToArchivedCatalogPage: (page: number) => archivedPagination.jumpToPage(page, archivedCatalogQuery.data?.nextCursor ?? null),
+    onJumpToCatalogPage: (page: number) => listPagination.jumpToPage(page, catalogQuery.data?.nextCursor ?? null),
+    onNextArchivedCatalogPage: () => archivedPagination.goToNextPage(archivedCatalogQuery.data?.nextCursor ?? null),
+    onNextCatalogPage: () => listPagination.goToNextPage(catalogQuery.data?.nextCursor ?? null),
+    onPreviousArchivedCatalogPage: archivedPagination.goToPreviousPage,
+    onPreviousCatalogPage: listPagination.goToPreviousPage,
+    pageSize: listPagination.pageSize,
+    searchQuery: listPagination.searchQuery,
+    visibleArchivedCatalog: archivedCatalog,
+    visibleCatalog: catalog,
   };
 }

@@ -3,7 +3,7 @@ import "server-only";
 import { types } from "cassandra-driver";
 import { uuidv7 } from "uuidv7";
 
-import { executeQuery } from "@/lib/server/scylla";
+import { executePagedQuery, executeQuery } from "@/lib/server/scylla";
 import type { TourMutationRequest } from "@/lib/shared/internal";
 
 import {
@@ -13,6 +13,31 @@ import {
   type TourByIdRow,
   type TourStatusRow,
 } from "./shared";
+import { listTourMedia } from "./tour-media";
+
+const DEFAULT_TOUR_PAGE_SIZE = 8;
+const MAX_TOUR_PAGE_SIZE = 48;
+const SEARCH_SCAN_MULTIPLIER = 4;
+
+function clampTourPageSize(limit?: number) {
+  if (!limit || !Number.isFinite(limit)) {
+    return DEFAULT_TOUR_PAGE_SIZE;
+  }
+
+  return Math.min(Math.max(Math.trunc(limit), 1), MAX_TOUR_PAGE_SIZE);
+}
+
+function tourMatchesSearch(tour: NonNullable<Awaited<ReturnType<typeof findInternalTour>>>, query?: string) {
+  const normalizedQuery = query?.trim().toLowerCase();
+
+  if (!normalizedQuery) {
+    return true;
+  }
+
+  return [tour.title, tour.slug, tour.destinationName, tour.category, tour.tourType, tour.tourId].some((value) =>
+    value.toLowerCase().includes(normalizedQuery),
+  );
+}
 
 async function writeTourProjections(tourId: string, input: TourMutationRequest, createdBy: string | null) {
   const updatedAt = String(types.TimeUuid.now());
@@ -80,6 +105,42 @@ export async function listInternalTours(status?: string) {
     .filter((tour): tour is NonNullable<Awaited<ReturnType<typeof findInternalTour>>> => Boolean(tour))
     .filter((tour) => !status || tour.status === status)
     .sort((left, right) => right.updatedAt.localeCompare(left.updatedAt));
+}
+
+export async function listInternalToursPage(
+  status: "archived" | "draft" | "published",
+  options?: {
+    cursor?: string | null;
+    limit?: number;
+    query?: string;
+  },
+) {
+  const limit = clampTourPageSize(options?.limit);
+  const query = options?.query?.trim();
+  const fetchSize = query ? Math.min(limit * SEARCH_SCAN_MULTIPLIER, MAX_TOUR_PAGE_SIZE * SEARCH_SCAN_MULTIPLIER) : limit;
+  const tours: NonNullable<Awaited<ReturnType<typeof findInternalTour>>>[] = [];
+  let pageState: string | Buffer | null = options?.cursor ?? null;
+
+  do {
+    const page: { pageState: string | Buffer | null; rows: TourStatusRow[] } = await executePagedQuery<TourStatusRow>(
+      "SELECT tour_id FROM tours_by_status WHERE status = ?",
+      [status],
+      { fetchSize, pageState },
+    );
+
+    pageState = page.pageState;
+    const pageTours = (await Promise.all(page.rows.map((row) => findInternalTour(String(row.tour_id)))))
+      .filter((tour): tour is NonNullable<Awaited<ReturnType<typeof findInternalTour>>> => Boolean(tour))
+      .filter((tour) => tour.status === status)
+      .filter((tour) => tourMatchesSearch(tour, query));
+
+    tours.push(...pageTours);
+  } while (tours.length < limit && pageState);
+
+  return {
+    nextCursor: pageState ? String(pageState) : null,
+    tours: tours.slice(0, limit),
+  };
 }
 
 export async function findInternalTour(tourId: string) {
@@ -213,4 +274,42 @@ export async function archiveInternalTour(tourId: string) {
   };
 
   return updateInternalTour(tourId, archivedInput);
+}
+
+export async function restoreInternalTour(tourId: string) {
+  const existing = await findInternalTour(tourId);
+
+  if (!existing) {
+    return null;
+  }
+
+  if (existing.status !== "archived") {
+    return existing;
+  }
+
+  return updateInternalTour(tourId, {
+    ...existing,
+    status: "draft",
+  });
+}
+
+export async function hardDeleteInternalTour(tourId: string) {
+  const existing = await findInternalTour(tourId);
+
+  if (!existing) {
+    return null;
+  }
+
+  const media = await listTourMedia(tourId);
+
+  for (const item of media) {
+    await executeQuery(
+      "DELETE FROM tour_media_by_tour WHERE tour_id = ? AND media_order = ? AND media_id = ?",
+      [tourId, item.mediaOrder, item.mediaId],
+    );
+  }
+
+  await executeQuery("DELETE FROM tours_by_id WHERE tour_id = ?", [tourId]);
+
+  return { media, tour: existing };
 }

@@ -1,6 +1,9 @@
+import { rm } from "node:fs/promises";
+import path from "node:path";
+
 import { requireAdministrativeStaff } from "@/lib/server/internal-auth";
 import { internalErrorResponse, internalJson } from "@/lib/server/internal-api";
-import { archiveInternalTour, findInternalTour, updateInternalTour } from "@/lib/server/internal-data";
+import { archiveInternalTour, findInternalTour, hardDeleteInternalTour, updateInternalTour } from "@/lib/server/internal-data";
 import { assertSameOriginRequest } from "@/lib/server/request-security";
 import { tourMutationSchema } from "@/lib/shared/internal";
 
@@ -12,6 +15,18 @@ type RouteContext = {
     tourId: string;
   }>;
 };
+
+async function removeStoredFile(publicUrl: string | null) {
+  if (!publicUrl) {
+    return;
+  }
+
+  await rm(path.join(process.cwd(), "public", publicUrl.replace(/^\/+/, "")), { force: true });
+}
+
+async function removeTourFolder(tourId: string) {
+  await rm(path.join(process.cwd(), "public", "uploads", "tours", tourId), { force: true, recursive: true });
+}
 
 export async function GET(request: Request, context: RouteContext) {
   try {
@@ -52,6 +67,24 @@ export async function DELETE(request: Request, context: RouteContext) {
     assertSameOriginRequest(request);
     await requireAdministrativeStaff(request);
     const { tourId } = await context.params;
+    const { searchParams } = new URL(request.url);
+
+    if (searchParams.get("mode") === "hard") {
+      const deleted = await hardDeleteInternalTour(tourId);
+
+      if (!deleted) {
+        return internalJson({ message: "Không tìm thấy tour." }, { status: 404 });
+      }
+
+      await Promise.all([
+        removeStoredFile(deleted.tour.coverImageUrl),
+        ...deleted.media.flatMap((media) => [removeStoredFile(media.mediaUrl), removeStoredFile(media.thumbnailUrl)]),
+      ]);
+      await removeTourFolder(tourId);
+
+      return internalJson({ message: "Tour đã bị xóa vĩnh viễn.", tour: deleted.tour });
+    }
+
     const tour = await archiveInternalTour(tourId);
 
     if (!tour) {

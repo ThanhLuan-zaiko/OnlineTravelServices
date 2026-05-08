@@ -1,8 +1,12 @@
+import { rm } from "node:fs/promises";
+import path from "node:path";
+
 import { requireAdministrativeStaff } from "@/lib/server/internal-auth";
 import { internalErrorResponse, internalJson } from "@/lib/server/internal-api";
 import {
   archiveInternalPromotion,
   findInternalPromotion,
+  hardDeleteInternalPromotion,
   updateInternalPromotion,
 } from "@/lib/server/internal-data";
 import { assertSameOriginRequest } from "@/lib/server/request-security";
@@ -16,6 +20,18 @@ type RouteContext = {
     promotionId: string;
   }>;
 };
+
+async function removeStoredFile(publicUrl: string | null) {
+  if (!publicUrl) {
+    return;
+  }
+
+  await rm(path.join(process.cwd(), "public", publicUrl.replace(/^\/+/, "")), { force: true });
+}
+
+async function removePromotionFolder(promotionId: string) {
+  await rm(path.join(process.cwd(), "public", "uploads", "promotions", promotionId), { force: true, recursive: true });
+}
 
 export async function GET(request: Request, context: RouteContext) {
   try {
@@ -60,6 +76,25 @@ export async function DELETE(request: Request, context: RouteContext) {
     assertSameOriginRequest(request);
     await requireAdministrativeStaff(request);
     const { promotionId } = await context.params;
+    const { searchParams } = new URL(request.url);
+
+    if (searchParams.get("mode") === "hard") {
+      const deleted = await hardDeleteInternalPromotion(promotionId);
+
+      if (!deleted) {
+        return internalJson({ message: "Không tìm thấy khuyến mãi." }, { status: 404 });
+      }
+
+      await Promise.all([
+        removeStoredFile(deleted.promotion.imageUrl),
+        removeStoredFile(deleted.promotion.thumbnailUrl),
+        ...deleted.media.flatMap((media) => [removeStoredFile(media.mediaUrl), removeStoredFile(media.thumbnailUrl)]),
+      ]);
+      await removePromotionFolder(promotionId);
+
+      return internalJson({ message: "Khuyến mãi đã bị xóa vĩnh viễn.", promotion: deleted.promotion });
+    }
+
     const promotion = await archiveInternalPromotion(promotionId);
 
     if (!promotion) {

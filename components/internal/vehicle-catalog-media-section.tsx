@@ -3,6 +3,8 @@
 import Image from "next/image";
 import { FiRefreshCw, FiTrash2 } from "react-icons/fi";
 
+import { PaginationControl } from "@/components/ui/pagination-control";
+import { SelectField } from "@/components/ui/select-field";
 import type { InternalVehicleCatalogItem } from "@/lib/shared/internal";
 
 import { EmptyState, InternalPanel, StatusPill } from "./internal-primitives";
@@ -11,23 +13,48 @@ import { imageFolderLabel } from "./vehicle-catalog-types";
 
 export function VehicleMediaSection({
   catalog,
+  currentPage,
   hardDeletePending,
+  hasNextPage,
+  hasPreviousPage,
   isLoading,
+  isPaging,
   onHardDelete,
+  onJumpToPage,
+  onNextPage,
+  onPreviousPage,
   onRestore,
+  pageSize,
   restorePending,
   searchQuery,
+  setPageSize,
   setSearchQuery,
 }: {
   catalog: InternalVehicleCatalogItem[];
+  currentPage: number;
   hardDeletePending: boolean;
+  hasNextPage: boolean;
+  hasPreviousPage: boolean;
   isLoading: boolean;
+  isPaging: boolean;
   onHardDelete: (item: InternalVehicleCatalogItem) => void;
+  onJumpToPage: (page: number) => void;
+  onNextPage: () => void;
+  onPreviousPage: () => void;
   onRestore: (item: InternalVehicleCatalogItem) => void;
+  pageSize: number;
   restorePending: boolean;
   searchQuery: string;
+  setPageSize: (value: number) => void;
   setSearchQuery: (value: string) => void;
 }) {
+  const pageSizeOptions = [
+    { label: "6 items", value: "6" },
+    { label: "8 items", value: "8" },
+    { label: "12 items", value: "12" },
+    { label: "24 items", value: "24" },
+  ];
+
   return (
     <InternalPanel className="p-4">
       <div className="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
@@ -37,7 +64,18 @@ export function VehicleMediaSection({
             Các phương tiện đã xóa mềm vẫn giữ ảnh để có thể khôi phục hoặc xóa vĩnh viễn.
           </p>
         </div>
-        <SearchInput searchQuery={searchQuery} setSearchQuery={setSearchQuery} />
+        <div className="grid gap-3 sm:grid-cols-[minmax(16rem,1fr)_10rem]">
+          <SearchInput searchQuery={searchQuery} setSearchQuery={setSearchQuery} />
+          <SelectField
+            buttonClassName="h-10 px-3 text-sm font-semibold"
+            label="Số item/trang"
+            name="vehicle-catalog-archived-page-size"
+            onValueChange={(value) => setPageSize(Number(value))}
+            options={pageSizeOptions}
+            placeholder="Số item"
+            value={String(pageSize)}
+          />
+        </div>
       </div>
 
       <div className="mt-4 grid gap-4 xl:grid-cols-2">
@@ -103,6 +141,22 @@ export function VehicleMediaSection({
           ))
         )}
       </div>
+
+      {catalog.length > 0 ? (
+        <div className="mt-4 flex flex-wrap items-center justify-between gap-3 border-t border-slate-200 pt-4 dark:border-neutral-800">
+          <PaginationControl
+            canGoNext={hasNextPage}
+            canGoPrevious={hasPreviousPage}
+            currentPage={currentPage}
+            disabled={isPaging}
+            itemLabel="phương tiện lưu trữ"
+            onGoNext={onNextPage}
+            onGoPrevious={onPreviousPage}
+            onPageSubmit={onJumpToPage}
+            pageSize={pageSize}
+          />
+        </div>
+      ) : null}
     </InternalPanel>
   );
 }
