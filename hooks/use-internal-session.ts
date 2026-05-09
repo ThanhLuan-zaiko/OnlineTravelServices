@@ -2,7 +2,10 @@
 
 import { useQuery } from "@tanstack/react-query";
 
-import { getCurrentInternalAccount, type ApiError } from "@/lib/client/api-client";
+import {
+  getCurrentInternalAccount,
+  type ApiError,
+} from "@/lib/client/api-client";
 import type { AuthUser } from "@/lib/shared/auth";
 
 export const internalSessionQueryKey = ["internal", "session"] as const;

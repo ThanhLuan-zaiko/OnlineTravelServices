@@ -7,7 +7,7 @@ import { executePagedQuery, executeQuery } from "@/lib/server/scylla";
 import type { ServiceCatalogMutationRequest } from "@/lib/shared/internal";
 
 import { findInternalDestination } from "./destinations";
-import { decimal, toServiceCatalog, toServiceMedia, type ServiceCatalogRow, type ServiceMediaRow } from "./shared";
+import { toServiceCatalog, toServiceMedia, type ServiceCatalogRow, type ServiceMediaRow } from "./shared";
 
 type ServiceStatus = "archived" | "draft" | "published";
 
@@ -40,6 +40,10 @@ function serviceMatchesSearch(service: ReturnType<typeof toServiceCatalog>, quer
   return [service.name, service.serviceType, service.serviceId, service.description ?? "", service.currency].some((value) =>
     value.toLowerCase().includes(normalizedQuery),
   );
+}
+
+function servicePriceDecimal(value: string) {
+  return value.trim() || "0";
 }
 
 export async function listInternalServices(destinationId: string, status?: string) {
@@ -122,7 +126,7 @@ export async function createInternalService(input: ServiceCatalogMutationRequest
       null,
       input.name,
       input.description ?? null,
-      decimal(input.basePrice),
+      servicePriceDecimal(input.basePrice),
       input.currency,
       input.status === "archived" ? RESTORE_FALLBACK_STATUS : input.status,
       null,
@@ -168,7 +172,7 @@ export async function updateInternalService(
       existing.imageUrl,
       input.name,
       input.description ?? null,
-      decimal(input.basePrice),
+      servicePriceDecimal(input.basePrice),
       input.currency,
       input.status === "archived" ? existing.status : input.status,
       existing.thumbnailUrl,

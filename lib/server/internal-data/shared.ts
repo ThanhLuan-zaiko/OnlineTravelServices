@@ -277,11 +277,11 @@ export type PromotionMediaRow = {
 };
 
 export function decimal(value: string) {
-  return types.BigDecimal.fromString(value);
+  return value.trim() || "0";
 }
 
 export function decimalFromNumber(value: number) {
-  return types.BigDecimal.fromString(Number.isFinite(value) ? value.toString() : "0");
+  return Number.isFinite(value) ? value.toString() : "0";
 }
 
 export function decimalToString(value: unknown) {

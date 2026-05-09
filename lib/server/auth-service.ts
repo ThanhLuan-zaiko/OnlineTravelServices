@@ -190,7 +190,7 @@ export async function registerCustomer(input: RegisterRequest, request: Request)
       DEFAULT_VIP_TIER,
       0,
       0,
-      types.BigDecimal.fromString("0"),
+      "0",
       0,
       null,
       now,

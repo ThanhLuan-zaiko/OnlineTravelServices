@@ -2,7 +2,10 @@
 
 import { useQuery } from "@tanstack/react-query";
 
-import { getCurrentCustomerAccount, type ApiError } from "@/lib/client/api-client";
+import {
+  getCurrentCustomerAccount,
+  type ApiError,
+} from "@/lib/client/api-client";
 import type { AuthUser } from "@/lib/shared/auth";
 
 export const authSessionQueryKey = ["auth", "session"] as const;

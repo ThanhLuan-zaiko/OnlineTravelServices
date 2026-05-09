@@ -6,7 +6,7 @@ import { storeImageAsset } from "@/lib/server/media-storage";
 import { executePagedQuery, executeQuery } from "@/lib/server/scylla";
 import type { ServiceProviderMutationRequest } from "@/lib/shared/internal";
 
-import { decimal, toServiceProvider, toServiceProviderMedia, type ServiceProviderMediaRow, type ServiceProviderRow } from "./shared";
+import { toServiceProvider, toServiceProviderMedia, type ServiceProviderMediaRow, type ServiceProviderRow } from "./shared";
 
 const ACTIVE_PROVIDER_STATUSES = ["active", "inactive", "suspended"] as const;
 type ProviderStatus = "active" | "archived" | "inactive" | "suspended";
@@ -44,6 +44,10 @@ function normalizeWritableStatus(status: ServiceProviderMutationRequest["status"
   return status === "archived" ? RESTORE_FALLBACK_STATUS : status;
 }
 
+function providerRatingDecimal(value: number) {
+  return Number.isFinite(value) ? String(value) : "0";
+}
+
 async function insertProvider(providerId: string, input: ServiceProviderMutationRequest, updatedAt: Date) {
   await executeQuery(
     `INSERT INTO service_providers_by_type
@@ -61,7 +65,7 @@ async function insertProvider(providerId: string, input: ServiceProviderMutation
       input.region,
       input.phone,
       input.email,
-      decimal(String(input.rating)),
+      providerRatingDecimal(input.rating),
       input.contractStatus,
       null,
       updatedAt,
@@ -186,7 +190,7 @@ export async function updateInternalServiceProvider(serviceType: string, provide
       input.region,
       input.phone,
       input.email,
-      decimal(String(input.rating)),
+      providerRatingDecimal(input.rating),
       input.contractStatus,
       existing.thumbnailUrl,
       new Date(),
@@ -228,7 +232,7 @@ export async function archiveInternalServiceProvider(serviceType: string, provid
       existing.region,
       existing.phone,
       existing.email,
-      decimal(String(existing.rating)),
+      providerRatingDecimal(existing.rating),
       existing.contractStatus,
       existing.thumbnailUrl,
       new Date(),
@@ -272,7 +276,7 @@ export async function restoreInternalServiceProvider(serviceType: string, provid
       existing.region,
       existing.phone,
       existing.email,
-      decimal(String(existing.rating)),
+      providerRatingDecimal(existing.rating),
       existing.contractStatus,
       existing.thumbnailUrl,
       new Date(),
