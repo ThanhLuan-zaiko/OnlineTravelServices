@@ -1,6 +1,6 @@
 import { requireAdministrativeStaff } from "@/lib/server/internal-auth";
 import { internalErrorResponse, internalJson } from "@/lib/server/internal-api";
-import { createInternalVehicleCatalog, listInternalVehicleCatalog, listInternalVehicleCatalogPage } from "@/lib/server/internal-data";
+import { createInternalVehicleCatalog, listInternalVehicleCatalog, listInternalVehicleCatalogPage, writeInternalAuditEvent } from "@/lib/server/internal-data";
 import { assertSameOriginRequest } from "@/lib/server/request-security";
 import { vehicleCatalogMutationSchema, vehicleCatalogStatusSchema } from "@/lib/shared/internal";
 
@@ -42,13 +42,22 @@ export async function GET(request: Request) {
 export async function POST(request: Request) {
   try {
     assertSameOriginRequest(request);
-    await requireAdministrativeStaff(request);
+    const user = await requireAdministrativeStaff(request);
     const input = vehicleCatalogMutationSchema.parse(await request.json());
     const catalogItem = await createInternalVehicleCatalog(input);
 
     if (!catalogItem) {
       return internalJson({ message: "Không thể tạo phương tiện." }, { status: 500 });
     }
+
+    await writeInternalAuditEvent({
+      action: "create",
+      actor: user,
+      description: `Tạo phương tiện ${catalogItem.label}.`,
+      entityId: catalogItem.vehicleCatalogId,
+      entityType: "vehicle_catalog",
+      request,
+    });
 
     return internalJson({ catalogItem }, { status: 201 });
   } catch (error) {

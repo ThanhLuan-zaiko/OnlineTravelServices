@@ -2,8 +2,8 @@
 
 import Image from "next/image";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { useState } from "react";
-import { FiSave, FiStar, FiTrash2 } from "react-icons/fi";
+import { useEffect, useMemo, useState } from "react";
+import { FiEye, FiSave, FiStar, FiTrash2 } from "react-icons/fi";
 
 import { ImageDropzone } from "@/components/ui/image-dropzone";
 import { SelectField } from "@/components/ui/select-field";
@@ -33,6 +33,7 @@ export function TourMediaManager({ coverImageUrl, tour, tourId }: TourMediaManag
   const [mediaType, setMediaType] = useState("image");
   const [isCover, setIsCover] = useState(true);
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
+  const selectedFilePreviewUrl = useMemo(() => (selectedFile ? URL.createObjectURL(selectedFile) : null), [selectedFile]);
 
   const mediaQuery = useQuery({
     queryKey: ["internal", "tour-media", tourId] as const,
@@ -106,6 +107,14 @@ export function TourMediaManager({ coverImageUrl, tour, tourId }: TourMediaManag
 
   const media = mediaQuery.data?.media ?? [];
 
+  useEffect(() => {
+    if (!selectedFilePreviewUrl) {
+      return;
+    }
+
+    return () => URL.revokeObjectURL(selectedFilePreviewUrl);
+  }, [selectedFilePreviewUrl]);
+
   return (
     <InternalPanel className="p-4">
       <div className="flex items-center justify-between gap-3">
@@ -138,6 +147,42 @@ export function TourMediaManager({ coverImageUrl, tour, tourId }: TourMediaManag
           />
           <SwitchField checked={isCover} className="md:self-end" label="Đặt làm ảnh đại diện" name={`tour-media-is-cover-${tourId}`} onCheckedChange={setIsCover} />
         </div>
+        {selectedFilePreviewUrl ? (
+          <div className="overflow-hidden rounded-2xl border border-sky-200 bg-sky-50/70 dark:border-sky-900 dark:bg-sky-950/20">
+            <div className="flex items-center justify-between gap-3 border-b border-sky-200/70 px-3 py-2 text-xs font-semibold uppercase tracking-wide text-sky-700 dark:border-sky-900 dark:text-sky-300">
+              <span>Ảnh nháp trong trình duyệt</span>
+              <span className="truncate">{selectedFile?.name ?? "Chưa có file"}</span>
+            </div>
+            <Image
+              alt={selectedFile?.name ?? tour?.title ?? "Ảnh tour"}
+              className="object-cover"
+              height={208}
+              src={selectedFilePreviewUrl}
+              style={{ height: "13rem", width: "100%" }}
+              unoptimized
+              width={640}
+            />
+            <div className="flex flex-wrap gap-2 p-3">
+              <a
+                className="inline-flex h-9 items-center justify-center gap-2 rounded-lg border border-sky-200 bg-white px-3 text-xs font-semibold text-sky-700 transition hover:-translate-y-0.5 dark:border-sky-900 dark:bg-neutral-950 dark:text-sky-300"
+                href={selectedFilePreviewUrl}
+                target="_blank"
+                rel="noreferrer"
+              >
+                <FiEye size={14} />
+                Xem
+              </a>
+              <button
+                className="inline-flex h-9 items-center justify-center gap-2 rounded-lg border border-rose-200 bg-white px-3 text-xs font-semibold text-rose-700 transition hover:bg-rose-50 dark:border-rose-950 dark:bg-neutral-950 dark:text-rose-300 dark:hover:bg-rose-950/40"
+                onClick={() => setSelectedFile(null)}
+                type="button"
+              >
+                <FiTrash2 size={14} />
+                Gỡ ảnh
+              </button>
+            </div>
+          </div>
+        ) : null}
         <ImageDropzone disabled={uploadMutation.isPending} file={selectedFile} label="Chọn file ảnh" onFileChange={setSelectedFile} />
         <button
           className="inline-flex h-11 items-center justify-center gap-2 rounded-xl bg-slate-950 px-4 text-sm font-semibold text-white transition hover:-translate-y-0.5 disabled:cursor-not-allowed disabled:opacity-70 dark:bg-neutral-50 dark:text-neutral-950"

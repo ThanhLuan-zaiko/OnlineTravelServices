@@ -6,9 +6,12 @@ import { useQueryClient } from "@tanstack/react-query";
 import { createContext, useContext, useEffect, useMemo, useState, type ReactNode } from "react";
 import {
   FiBarChart2,
+  FiBell,
   FiCalendar,
   FiChevronLeft,
   FiChevronRight,
+  FiClipboard,
+  FiFileText,
   FiGift,
   FiHome,
   FiGrid,
@@ -18,6 +21,7 @@ import {
   FiMapPin,
   FiTruck,
   FiTool,
+  FiUsers,
 } from "react-icons/fi";
 
 import { ThemeToggle, useThemeController } from "@/components/customer-facing/theme-controller";
@@ -29,13 +33,18 @@ import type { AuthUser } from "@/lib/shared/auth";
 const navItems = [
   { href: "/internal", icon: FiHome, label: "Tổng quan" },
   { href: "/internal/tours", icon: FiPackage, label: "Quản lý tour" },
+  { href: "/internal/suggested-tours", icon: FiClipboard, label: "Tour đề xuất" },
+  { href: "/internal/tour-approvals", icon: FiFileText, label: "Phê duyệt" },
   { href: "/internal/destinations", icon: FiMapPin, label: "Quản lý địa điểm tour" },
   { href: "/internal/vehicle-catalog", icon: FiGrid, label: "Danh mục phương tiện" },
   { href: "/internal/services", icon: FiTool, label: "Quản lý dịch vụ đi kèm" },
   { href: "/internal/providers", icon: FiTruck, label: "Nhà cung cấp" },
+  { href: "/internal/customers", icon: FiUsers, label: "Khách hàng" },
   { href: "/internal/revenue", icon: FiBarChart2, label: "Doanh thu tour" },
   { href: "/internal/schedules", icon: FiCalendar, label: "Lịch trình" },
   { href: "/internal/promotions", icon: FiGift, label: "Khuyến mãi" },
+  { href: "/internal/notifications", icon: FiBell, label: "Thông báo" },
+  { href: "/internal/audit", icon: FiFileText, label: "Audit" },
 ];
 
 const COLLAPSED_STORAGE_KEY = "internal-shell-collapsed";

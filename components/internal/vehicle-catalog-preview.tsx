@@ -2,7 +2,7 @@
 
 import Image from "next/image";
 import { useEffect } from "react";
-import { FiEye, FiX } from "react-icons/fi";
+import { FiEye, FiStar, FiTrash2, FiX } from "react-icons/fi";
 
 import type { InternalVehicleCatalogItem } from "@/lib/shared/internal";
 
@@ -10,11 +10,17 @@ import type { VehicleImagePreviewState } from "./vehicle-catalog-types";
 
 export function VehicleSelectedImagePreview({
   fileName,
+  isCover = false,
   onOpenPreview,
+  onRemove,
+  onSetCover,
   previewUrl,
 }: {
   fileName: string;
+  isCover?: boolean;
   onOpenPreview: () => void;
+  onRemove?: () => void;
+  onSetCover?: () => void;
   previewUrl: string;
 }) {
   return (
@@ -32,14 +38,43 @@ export function VehicleSelectedImagePreview({
         unoptimized
         width={720}
       />
-      <button
-        className="m-3 inline-flex h-10 items-center justify-center gap-2 rounded-xl border border-sky-200 bg-white px-4 text-sm font-semibold text-sky-700 transition hover:-translate-y-0.5 dark:border-sky-900 dark:bg-neutral-950 dark:text-sky-300"
-        onClick={onOpenPreview}
-        type="button"
-      >
-        <FiEye size={16} />
-        Xem toàn cảnh
-      </button>
+      {isCover ? (
+        <div className="mx-3 mt-3 inline-flex items-center gap-1 rounded-full bg-emerald-600 px-2 py-1 text-[11px] font-semibold text-white">
+          <FiStar size={12} />
+          Cover nháp
+        </div>
+      ) : null}
+      <div className="flex flex-wrap gap-2 p-3">
+        <button
+          className="inline-flex h-9 items-center justify-center gap-2 rounded-lg border border-sky-200 bg-white px-3 text-xs font-semibold text-sky-700 transition hover:-translate-y-0.5 dark:border-sky-900 dark:bg-neutral-950 dark:text-sky-300"
+          onClick={onOpenPreview}
+          type="button"
+        >
+          <FiEye size={14} />
+          Xem
+        </button>
+        {onSetCover ? (
+          <button
+            className="inline-flex h-9 items-center justify-center gap-2 rounded-lg border border-slate-200 bg-white px-3 text-xs font-semibold text-slate-700 transition hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-60 dark:border-neutral-800 dark:bg-neutral-950 dark:text-neutral-200 dark:hover:bg-neutral-900"
+            disabled={isCover}
+            onClick={onSetCover}
+            type="button"
+          >
+            <FiStar size={14} />
+            Đặt cover
+          </button>
+        ) : null}
+        {onRemove ? (
+          <button
+            className="inline-flex h-9 items-center justify-center gap-2 rounded-lg border border-rose-200 bg-white px-3 text-xs font-semibold text-rose-700 transition hover:bg-rose-50 dark:border-rose-950 dark:bg-neutral-950 dark:text-rose-300 dark:hover:bg-rose-950/40"
+            onClick={onRemove}
+            type="button"
+          >
+            <FiTrash2 size={14} />
+            Gỡ ảnh
+          </button>
+        ) : null}
+      </div>
     </div>
   );
 }

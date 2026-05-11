@@ -8,6 +8,7 @@ import {
   findInternalServiceProviderById,
   hardDeleteInternalServiceProvider,
   updateInternalServiceProvider,
+  writeInternalAuditEvent,
 } from "@/lib/server/internal-data";
 import { assertSameOriginRequest } from "@/lib/server/request-security";
 import { serviceProviderMutationSchema } from "@/lib/shared/internal";
@@ -62,7 +63,7 @@ export async function GET(request: Request, context: RouteContext) {
 export async function PATCH(request: Request, context: RouteContext) {
   try {
     assertSameOriginRequest(request);
-    await requireAdministrativeStaff(request);
+    const user = await requireAdministrativeStaff(request);
     const { providerId, serviceType } = await context.params;
     const input = serviceProviderMutationSchema.parse(await request.json());
     const provider = await updateInternalServiceProvider(serviceType, providerId, input);
@@ -70,6 +71,15 @@ export async function PATCH(request: Request, context: RouteContext) {
     if (!provider) {
       return internalJson({ message: "Không tìm thấy nhà cung cấp." }, { status: 404 });
     }
+
+    await writeInternalAuditEvent({
+      action: "update",
+      actor: user,
+      description: `Cập nhật nhà cung cấp ${provider.providerName}.`,
+      entityId: provider.providerId,
+      entityType: "service_provider",
+      request,
+    });
 
     return internalJson({ provider });
   } catch (error) {
@@ -82,7 +92,7 @@ export async function PATCH(request: Request, context: RouteContext) {
 export async function DELETE(request: Request, context: RouteContext) {
   try {
     assertSameOriginRequest(request);
-    await requireAdministrativeStaff(request);
+    const user = await requireAdministrativeStaff(request);
     const { providerId, serviceType } = await context.params;
     const { searchParams } = new URL(request.url);
 
@@ -100,6 +110,15 @@ export async function DELETE(request: Request, context: RouteContext) {
       ]);
       await removeProviderFolder(serviceType, providerId);
 
+      await writeInternalAuditEvent({
+        action: "hard_delete",
+        actor: user,
+        description: `Xóa vĩnh viễn nhà cung cấp ${deleted.provider.providerName}.`,
+        entityId: deleted.provider.providerId,
+        entityType: "service_provider",
+        request,
+      });
+
       return internalJson({
         message: "Nhà cung cấp đã bị xóa vĩnh viễn.",
         provider: deleted.provider,
@@ -111,6 +130,15 @@ export async function DELETE(request: Request, context: RouteContext) {
     if (!provider) {
       return internalJson({ message: "Không tìm thấy nhà cung cấp." }, { status: 404 });
     }
+
+    await writeInternalAuditEvent({
+      action: "archive",
+      actor: user,
+      description: `Lưu trữ nhà cung cấp ${provider.providerName}.`,
+      entityId: provider.providerId,
+      entityType: "service_provider",
+      request,
+    });
 
     return internalJson({ provider });
   } catch (error) {

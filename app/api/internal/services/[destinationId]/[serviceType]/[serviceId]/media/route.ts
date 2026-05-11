@@ -1,6 +1,6 @@
 import { requireAdministrativeStaff } from "@/lib/server/internal-auth";
 import { internalErrorResponse, internalJson } from "@/lib/server/internal-api";
-import { addServiceMedia, findInternalService, listServiceMedia } from "@/lib/server/internal-data";
+import { addServiceMedia, findInternalService, listServiceMedia, writeInternalAuditEvent } from "@/lib/server/internal-data";
 import { assertSameOriginRequest } from "@/lib/server/request-security";
 
 export const dynamic = "force-dynamic";
@@ -70,6 +70,17 @@ export async function POST(request: Request, context: RouteContext) {
       if (item) {
         media.push(item);
       }
+    }
+
+    if (media.length > 0) {
+      await writeInternalAuditEvent({
+        action: isCover ? "media_cover_upload" : "media_upload",
+        actor: user,
+        description: `Upload ${media.length} ảnh cho dịch vụ ${service.name}.`,
+        entityId: service.serviceId,
+        entityType: "service",
+        request,
+      });
     }
 
     return internalJson({ media }, { status: 201 });

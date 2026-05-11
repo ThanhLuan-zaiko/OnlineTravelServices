@@ -1,6 +1,6 @@
 import { requireAdministrativeStaff } from "@/lib/server/internal-auth";
 import { internalErrorResponse, internalJson } from "@/lib/server/internal-api";
-import { addDestinationMedia, findInternalDestination, listDestinationMedia } from "@/lib/server/internal-data";
+import { addDestinationMedia, findInternalDestination, listDestinationMedia, writeInternalAuditEvent } from "@/lib/server/internal-data";
 import { storeImageAsset } from "@/lib/server/media-storage";
 import { assertSameOriginRequest } from "@/lib/server/request-security";
 
@@ -68,6 +68,17 @@ export async function POST(request: Request, context: RouteContext) {
       uploadedBy: user.userId,
       isCover,
     });
+
+    if (media) {
+      await writeInternalAuditEvent({
+        action: isCover ? "media_cover_upload" : "media_upload",
+        actor: user,
+        description: `Upload ảnh cho địa điểm ${destination.name}.`,
+        entityId: destination.destinationId,
+        entityType: "destination",
+        request,
+      });
+    }
 
     return internalJson({ media }, { status: 201 });
   } catch (error) {

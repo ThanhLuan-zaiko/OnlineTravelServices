@@ -3,7 +3,7 @@ import path from "node:path";
 
 import { requireAdministrativeStaff } from "@/lib/server/internal-auth";
 import { internalErrorResponse, internalJson } from "@/lib/server/internal-api";
-import { archiveInternalTour, findInternalTour, hardDeleteInternalTour, updateInternalTour } from "@/lib/server/internal-data";
+import { archiveInternalTour, findInternalTour, hardDeleteInternalTour, updateInternalTour, writeInternalAuditEvent } from "@/lib/server/internal-data";
 import { assertSameOriginRequest } from "@/lib/server/request-security";
 import { tourMutationSchema } from "@/lib/shared/internal";
 
@@ -47,7 +47,7 @@ export async function GET(request: Request, context: RouteContext) {
 export async function PATCH(request: Request, context: RouteContext) {
   try {
     assertSameOriginRequest(request);
-    await requireAdministrativeStaff(request);
+    const user = await requireAdministrativeStaff(request);
     const { tourId } = await context.params;
     const input = tourMutationSchema.parse(await request.json());
     const tour = await updateInternalTour(tourId, input);
@@ -55,6 +55,15 @@ export async function PATCH(request: Request, context: RouteContext) {
     if (!tour) {
       return internalJson({ message: "Không tìm thấy tour." }, { status: 404 });
     }
+
+    await writeInternalAuditEvent({
+      action: "update",
+      actor: user,
+      description: `Cập nhật tour ${tour.title}.`,
+      entityId: tour.tourId,
+      entityType: "tour",
+      request,
+    });
 
     return internalJson({ tour });
   } catch (error) {
@@ -65,7 +74,7 @@ export async function PATCH(request: Request, context: RouteContext) {
 export async function DELETE(request: Request, context: RouteContext) {
   try {
     assertSameOriginRequest(request);
-    await requireAdministrativeStaff(request);
+    const user = await requireAdministrativeStaff(request);
     const { tourId } = await context.params;
     const { searchParams } = new URL(request.url);
 
@@ -82,6 +91,15 @@ export async function DELETE(request: Request, context: RouteContext) {
       ]);
       await removeTourFolder(tourId);
 
+      await writeInternalAuditEvent({
+        action: "hard_delete",
+        actor: user,
+        description: `Xóa vĩnh viễn tour ${deleted.tour.title}.`,
+        entityId: deleted.tour.tourId,
+        entityType: "tour",
+        request,
+      });
+
       return internalJson({ message: "Tour đã bị xóa vĩnh viễn.", tour: deleted.tour });
     }
 
@@ -90,6 +108,15 @@ export async function DELETE(request: Request, context: RouteContext) {
     if (!tour) {
       return internalJson({ message: "Không tìm thấy tour." }, { status: 404 });
     }
+
+    await writeInternalAuditEvent({
+      action: "archive",
+      actor: user,
+      description: `Lưu trữ tour ${tour.title}.`,
+      entityId: tour.tourId,
+      entityType: "tour",
+      request,
+    });
 
     return internalJson({ tour });
   } catch (error) {

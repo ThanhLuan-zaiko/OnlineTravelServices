@@ -1,6 +1,6 @@
 import { requireAdministrativeStaff } from "@/lib/server/internal-auth";
 import { internalErrorResponse, internalJson } from "@/lib/server/internal-api";
-import { restoreInternalTour } from "@/lib/server/internal-data";
+import { restoreInternalTour, writeInternalAuditEvent } from "@/lib/server/internal-data";
 import { assertSameOriginRequest } from "@/lib/server/request-security";
 
 export const dynamic = "force-dynamic";
@@ -15,13 +15,22 @@ type RouteContext = {
 export async function PATCH(request: Request, context: RouteContext) {
   try {
     assertSameOriginRequest(request);
-    await requireAdministrativeStaff(request);
+    const user = await requireAdministrativeStaff(request);
     const { tourId } = await context.params;
     const tour = await restoreInternalTour(tourId);
 
     if (!tour) {
       return internalJson({ message: "Không tìm thấy tour." }, { status: 404 });
     }
+
+    await writeInternalAuditEvent({
+      action: "restore",
+      actor: user,
+      description: `Khôi phục tour ${tour.title}.`,
+      entityId: tour.tourId,
+      entityType: "tour",
+      request,
+    });
 
     return internalJson({ tour });
   } catch (error) {

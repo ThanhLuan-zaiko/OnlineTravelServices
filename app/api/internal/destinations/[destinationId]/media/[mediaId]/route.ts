@@ -3,7 +3,7 @@ import path from "node:path";
 
 import { requireAdministrativeStaff } from "@/lib/server/internal-auth";
 import { internalErrorResponse, internalJson } from "@/lib/server/internal-api";
-import { deleteDestinationMedia, findDestinationMedia, findInternalDestination } from "@/lib/server/internal-data";
+import { deleteDestinationMedia, findDestinationMedia, findInternalDestination, writeInternalAuditEvent } from "@/lib/server/internal-data";
 import { assertSameOriginRequest } from "@/lib/server/request-security";
 
 export const dynamic = "force-dynamic";
@@ -30,7 +30,7 @@ async function removeStoredFile(publicUrl: string) {
 export async function DELETE(request: Request, context: RouteContext) {
   try {
     assertSameOriginRequest(request);
-    await requireAdministrativeStaff(request);
+    const user = await requireAdministrativeStaff(request);
     const { destinationId, mediaId } = await context.params;
     const destination = await findInternalDestination(destinationId);
 
@@ -50,6 +50,15 @@ export async function DELETE(request: Request, context: RouteContext) {
     if (!deleted) {
       return internalJson({ message: "Không tìm thấy ảnh." }, { status: 404 });
     }
+
+    await writeInternalAuditEvent({
+      action: "media_delete",
+      actor: user,
+      description: `Xóa ảnh khỏi địa điểm ${destination.name}.`,
+      entityId: destination.destinationId,
+      entityType: "destination",
+      request,
+    });
 
     return internalJson({ media: deleted });
   } catch (error) {

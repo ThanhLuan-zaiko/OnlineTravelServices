@@ -3,7 +3,7 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { usePathname, useRouter } from "next/navigation";
 import { useEffect, useMemo, useRef, useState, type FormEvent } from "react";
-import { FiArchive, FiEdit2, FiGift, FiGrid, FiImage, FiPlus, FiRefreshCw, FiSave, FiTrash2 } from "react-icons/fi";
+import { FiArchive, FiBarChart2, FiEdit2, FiGift, FiGrid, FiImage, FiPlus, FiRefreshCw, FiSave, FiTrash2 } from "react-icons/fi";
 
 import { ConfirmModal } from "@/components/ui/confirm-modal";
 import { SelectField } from "@/components/ui/select-field";
@@ -15,6 +15,7 @@ import {
   getInternalPromotion,
   getInternalPromotionMedia,
   getInternalPromotionPage,
+  getInternalPromotions,
   hardDeleteInternalPromotion,
   restoreInternalPromotion,
   setInternalPromotionMediaCover,
@@ -40,7 +41,7 @@ import {
 } from "./catalog-workspace-ui";
 import { EmptyState, InternalPanel, InternalPageHeader, StatusPill } from "./internal-primitives";
 
-type PromotionTab = "archived" | "list" | "manage" | "media";
+type PromotionTab = "archived" | "effectiveness" | "list" | "manage" | "media";
 type DangerAction =
   | { kind: "archive"; promotion: InternalPromotion }
   | { kind: "delete-media"; media: InternalPromotionMedia }
@@ -50,6 +51,7 @@ type DangerAction =
 
 const initialForm: PromotionMutationRequest = {
   code: "",
+  customerSegment: "all",
   customerTier: "standard",
   description: "",
   discountType: "percent",
@@ -57,10 +59,13 @@ const initialForm: PromotionMutationRequest = {
   endAt: "",
   maxDiscountAmount: null,
   promotionType: "campaign",
+  regularGiftTitle: "",
   startAt: "",
   status: "draft",
   title: "",
   usageLimit: 100,
+  vipDiscountPriority: 20,
+  vipGiftTitle: "",
 };
 
 const statusOptions = [
@@ -75,18 +80,31 @@ const discountTypeOptions = [
   { label: "percent", value: "percent" },
   { label: "amount", value: "amount" },
 ];
+const customerSegmentOptions = [
+  { label: "Tất cả", value: "all" },
+  { label: "Khách thường", value: "regular" },
+  { label: "VIP", value: "vip" },
+];
+const customerTierOptions = [
+  { label: "standard", value: "standard" },
+  { label: "silver", value: "silver" },
+  { label: "gold", value: "gold" },
+  { label: "platinum", value: "platinum" },
+];
 
 const tabs = [
   { href: "/internal/promotions/manage", icon: FiGift, label: "Tạo + Sửa" },
   { href: "/internal/promotions/list", icon: FiGrid, label: "Danh sách" },
   { href: "/internal/promotions/archived", icon: FiArchive, label: "Archived" },
   { href: "/internal/promotions/media", icon: FiImage, label: "Kho ảnh" },
+  { href: "/internal/promotions/effectiveness", icon: FiBarChart2, label: "Hiệu quả" },
 ];
 
 function getActiveTab(pathname: string): PromotionTab {
   if (pathname.startsWith("/internal/promotions/list")) return "list";
   if (pathname.startsWith("/internal/promotions/archived")) return "archived";
   if (pathname.startsWith("/internal/promotions/media")) return "media";
+  if (pathname.startsWith("/internal/promotions/effectiveness")) return "effectiveness";
   return "manage";
 }
 
@@ -94,6 +112,7 @@ function pageCopy(tab: PromotionTab) {
   if (tab === "list") return { title: "Danh sách khuyến mãi", description: "Tìm kiếm, phân trang, sửa nhanh, soft delete và hard delete khuyến mãi." };
   if (tab === "archived") return { title: "Khuyến mãi archived", description: "Khôi phục hoặc xóa vĩnh viễn các chiến dịch đã lưu trữ." };
   if (tab === "media") return { title: "Kho ảnh khuyến mãi", description: "Upload, đặt cover và dọn gallery ảnh cho từng chương trình." };
+  if (tab === "effectiveness") return { title: "Hiệu quả khuyến mãi", description: "Đánh giá chương trình tốt/xấu theo lượt dùng, giới hạn, doanh thu và ưu tiên VIP." };
   return { title: "Tạo và chỉnh sửa khuyến mãi", description: "Quản lý mã, thời gian áp dụng, hạng khách hàng và ảnh chiến dịch." };
 }
 
@@ -104,6 +123,7 @@ function toDateTimeInput(value: string) {
 function buildForm(promotion: InternalPromotion): PromotionMutationRequest {
   return {
     code: promotion.code,
+    customerSegment: promotion.customerSegment,
     customerTier: promotion.customerTier,
     description: promotion.description,
     discountType: promotion.discountType,
@@ -111,10 +131,13 @@ function buildForm(promotion: InternalPromotion): PromotionMutationRequest {
     endAt: toDateTimeInput(promotion.endAt),
     maxDiscountAmount: promotion.maxDiscountAmount,
     promotionType: promotion.promotionType,
+    regularGiftTitle: promotion.regularGiftTitle,
     startAt: toDateTimeInput(promotion.startAt),
     status: promotion.status === "archived" ? promotion.archivedFromStatus ?? "draft" : promotion.status,
     title: promotion.title,
     usageLimit: promotion.usageLimit,
+    vipDiscountPriority: promotion.vipDiscountPriority,
+    vipGiftTitle: promotion.vipGiftTitle,
   };
 }
 
@@ -204,6 +227,10 @@ export function PromotionManager() {
   const mediaListQuery = useQuery({
     queryKey: ["internal", "promotions", "page", "media", mediaSearchQuery, mediaPageSize, mediaCursors[mediaPage], mediaPage] as const,
     queryFn: () => getInternalPromotionPage({ cursor: mediaCursors[mediaPage] ?? null, limit: mediaPageSize, q: mediaSearchQuery, status: "published" }),
+  });
+  const effectivenessQuery = useQuery({
+    queryKey: ["internal", "promotions", "effectiveness"] as const,
+    queryFn: () => getInternalPromotions(),
   });
   const mediaQuery = useQuery({
     enabled: Boolean((mediaTarget ?? editing)?.promotionId),
@@ -398,11 +425,15 @@ export function PromotionManager() {
                 <TextInput error={formErrors.code} label="Mã" value={form.code} onChange={(value) => setForm((current) => ({ ...current, code: value }))} />
                 <TextInput error={formErrors.title} label="Tên" value={form.title} onChange={(value) => setForm((current) => ({ ...current, title: value }))} />
                 <SelectField error={formErrors.status} label="Trạng thái" name="promotion-status" onValueChange={(value) => setForm((current) => ({ ...current, status: value as PromotionMutationRequest["status"] }))} options={statusOptions} placeholder="Chọn trạng thái" value={form.status} />
-                <TextInput error={formErrors.customerTier} label="Hạng khách" value={form.customerTier} onChange={(value) => setForm((current) => ({ ...current, customerTier: value }))} />
+                <SelectField error={formErrors.customerSegment} label="Nhóm khách" name="promotion-customer-segment" onValueChange={(value) => setForm((current) => ({ ...current, customerSegment: value as PromotionMutationRequest["customerSegment"] }))} options={customerSegmentOptions} placeholder="Nhóm khách" value={form.customerSegment} />
+                <SelectField error={formErrors.customerTier} label="Hạng khách" name="promotion-customer-tier" onValueChange={(value) => setForm((current) => ({ ...current, customerTier: value }))} options={customerTierOptions} placeholder="Hạng khách" value={form.customerTier} />
                 <SelectField label="Loại giảm" name="promotion-discount-type" onValueChange={(value) => setForm((current) => ({ ...current, discountType: value as PromotionMutationRequest["discountType"] }))} options={discountTypeOptions} placeholder="Chọn loại" value={form.discountType} />
                 <TextInput error={formErrors.discountValue} label="Giá trị" value={form.discountValue} onChange={(value) => setForm((current) => ({ ...current, discountValue: value }))} />
                 <TextInput error={formErrors.maxDiscountAmount} label="Giảm tối đa" value={form.maxDiscountAmount ?? ""} onChange={(value) => setForm((current) => ({ ...current, maxDiscountAmount: value || null }))} />
                 <TextInput error={formErrors.promotionType} label="Loại chương trình" value={form.promotionType} onChange={(value) => setForm((current) => ({ ...current, promotionType: value }))} />
+                <TextInput error={formErrors.regularGiftTitle} label="Quà khách thường" value={form.regularGiftTitle ?? ""} onChange={(value) => setForm((current) => ({ ...current, regularGiftTitle: value || null }))} />
+                <TextInput error={formErrors.vipGiftTitle} label="Quà VIP" value={form.vipGiftTitle ?? ""} onChange={(value) => setForm((current) => ({ ...current, vipGiftTitle: value || null }))} />
+                <TextInput error={formErrors.vipDiscountPriority} label="Ưu tiên giảm VIP (%)" type="number" value={String(form.vipDiscountPriority)} onChange={(value) => setForm((current) => ({ ...current, vipDiscountPriority: Number(value) }))} />
                 <TextInput error={formErrors.startAt} label="Bắt đầu" type="datetime-local" value={form.startAt} onChange={(value) => setForm((current) => ({ ...current, startAt: value }))} />
                 <TextInput error={formErrors.endAt} label="Kết thúc" type="datetime-local" value={form.endAt} onChange={(value) => setForm((current) => ({ ...current, endAt: value }))} />
                 <TextInput error={formErrors.usageLimit} label="Giới hạn sử dụng" type="number" value={String(form.usageLimit)} onChange={(value) => setForm((current) => ({ ...current, usageLimit: Number(value) }))} />
@@ -421,8 +452,9 @@ export function PromotionManager() {
             </form>
           </InternalPanel>
           <MediaPanel
-            disabled={saveMutation.isPending || (!editing && selectedFiles.length === 0)}
+            disabled={!editing || saveMutation.isPending}
             emptyLabel={editing ? "Chưa có ảnh trong gallery." : "Lưu khuyến mãi trước hoặc chọn ảnh để upload sau khi lưu."}
+            fileSelectionDisabled={saveMutation.isPending}
             media={media as MediaItem[]}
             mediaPending={mediaQuery.isLoading}
             onDeleteMedia={(item) => setDangerAction({ kind: "delete-media", media: item as InternalPromotionMedia })}
@@ -488,6 +520,12 @@ export function PromotionManager() {
         </div>
       ) : null}
 
+      {activeTab === "effectiveness" ? (
+        <InternalPanel className="p-4">
+          <PromotionEffectiveness items={effectivenessQuery.data?.promotions ?? []} loading={effectivenessQuery.isLoading} />
+        </InternalPanel>
+      ) : null}
+
       <ConfirmModal
         confirmLabel={dangerAction?.kind === "restore" ? "Khôi phục" : dangerAction?.kind === "hard-delete" ? "Xóa vĩnh viễn" : dangerAction?.kind === "delete-media" ? "Xóa ảnh" : "Lưu trữ"}
         description={dangerAction?.kind === "hard-delete" ? "Dữ liệu và toàn bộ ảnh của khuyến mãi sẽ bị xóa vĩnh viễn." : dangerAction?.kind === "restore" ? "Khuyến mãi sẽ quay lại trạng thái trước khi archived." : dangerAction?.kind === "delete-media" ? "Ảnh sẽ bị xóa khỏi gallery." : "Khuyến mãi sẽ chuyển sang archived."}
@@ -500,6 +538,43 @@ export function PromotionManager() {
   );
 }
 
+function PromotionEffectiveness({ items, loading }: { items: InternalPromotion[]; loading: boolean }) {
+  if (items.length === 0) {
+    return <EmptyState message={loading ? "Đang tải hiệu quả khuyến mãi..." : "Chưa có khuyến mãi để đánh giá."} />;
+  }
+
+  return (
+    <div className="grid gap-4 xl:grid-cols-2">
+      {items.map((promotion) => {
+        const usageRate = promotion.usageLimit > 0 ? promotion.usedCount / promotion.usageLimit : 0;
+        const revenueImpact = Number(promotion.revenueImpact);
+        const good = usageRate >= 0.3 || revenueImpact > 0 || promotion.customerSegment === "vip";
+
+        return (
+          <article className="rounded-2xl border border-slate-200 bg-white p-4 dark:border-neutral-800 dark:bg-black" key={promotion.promotionId}>
+            <div className="flex flex-wrap items-start justify-between gap-3">
+              <div className="min-w-0">
+                <h3 className="truncate text-base font-semibold">{promotion.title}</h3>
+                <p className="mt-1 text-sm text-slate-500">{promotion.code} - {promotion.customerSegment}/{promotion.customerTier}</p>
+              </div>
+              <StatusPill value={good ? "good" : "needs_review"} />
+            </div>
+            <div className="mt-4 grid gap-3 md:grid-cols-3">
+              <Metric label="Usage" value={`${promotion.usedCount}/${promotion.usageLimit}`} />
+              <Metric label="Revenue" value={Number(promotion.revenueImpact).toLocaleString("vi-VN")} />
+              <Metric label="VIP priority" value={`${promotion.vipDiscountPriority}%`} />
+            </div>
+            <div className="mt-3 grid gap-2 text-sm text-slate-600 dark:text-neutral-400 md:grid-cols-2">
+              <p>Quà thường: {promotion.regularGiftTitle || "Chưa cấu hình"}</p>
+              <p>Quà VIP: {promotion.vipGiftTitle || "Chưa cấu hình"}</p>
+            </div>
+          </article>
+        );
+      })}
+    </div>
+  );
+}
+
 function TextInput({ error, label, onChange, type = "text", value }: { error?: string; label: string; onChange: (value: string) => void; type?: string; value: string }) {
   return (
     <label className="space-y-2">
@@ -507,6 +582,15 @@ function TextInput({ error, label, onChange, type = "text", value }: { error?: s
       <input className={`h-11 w-full rounded-xl border bg-white px-3 text-sm outline-none dark:bg-black ${error ? "border-rose-300" : "border-slate-200 dark:border-neutral-800"}`} type={type} value={value} onChange={(event) => onChange(event.target.value)} />
       {error ? <p className="text-xs font-medium text-rose-600 dark:text-rose-300">{error}</p> : null}
     </label>
+  );
+}
+
+function Metric({ label, value }: { label: string; value: string }) {
+  return (
+    <div className="rounded-xl border border-slate-200 p-3 dark:border-neutral-800">
+      <p className="text-xs font-semibold uppercase text-slate-500">{label}</p>
+      <p className="mt-1 font-semibold">{value}</p>
+    </div>
   );
 }
 

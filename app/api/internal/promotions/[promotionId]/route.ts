@@ -8,6 +8,7 @@ import {
   findInternalPromotion,
   hardDeleteInternalPromotion,
   updateInternalPromotion,
+  writeInternalAuditEvent,
 } from "@/lib/server/internal-data";
 import { assertSameOriginRequest } from "@/lib/server/request-security";
 import { promotionMutationSchema } from "@/lib/shared/internal";
@@ -54,7 +55,7 @@ export async function GET(request: Request, context: RouteContext) {
 export async function PATCH(request: Request, context: RouteContext) {
   try {
     assertSameOriginRequest(request);
-    await requireAdministrativeStaff(request);
+    const user = await requireAdministrativeStaff(request);
     const { promotionId } = await context.params;
     const input = promotionMutationSchema.parse(await request.json());
     const promotion = await updateInternalPromotion(promotionId, input);
@@ -62,6 +63,15 @@ export async function PATCH(request: Request, context: RouteContext) {
     if (!promotion) {
       return internalJson({ message: "Không tìm thấy khuyến mãi." }, { status: 404 });
     }
+
+    await writeInternalAuditEvent({
+      action: "update",
+      actor: user,
+      description: `Cập nhật khuyến mãi ${promotion.title}.`,
+      entityId: promotion.promotionId,
+      entityType: "promotion",
+      request,
+    });
 
     return internalJson({ promotion });
   } catch (error) {
@@ -74,7 +84,7 @@ export async function PATCH(request: Request, context: RouteContext) {
 export async function DELETE(request: Request, context: RouteContext) {
   try {
     assertSameOriginRequest(request);
-    await requireAdministrativeStaff(request);
+    const user = await requireAdministrativeStaff(request);
     const { promotionId } = await context.params;
     const { searchParams } = new URL(request.url);
 
@@ -92,6 +102,15 @@ export async function DELETE(request: Request, context: RouteContext) {
       ]);
       await removePromotionFolder(promotionId);
 
+      await writeInternalAuditEvent({
+        action: "hard_delete",
+        actor: user,
+        description: `Xóa vĩnh viễn khuyến mãi ${deleted.promotion.title}.`,
+        entityId: deleted.promotion.promotionId,
+        entityType: "promotion",
+        request,
+      });
+
       return internalJson({ message: "Khuyến mãi đã bị xóa vĩnh viễn.", promotion: deleted.promotion });
     }
 
@@ -100,6 +119,15 @@ export async function DELETE(request: Request, context: RouteContext) {
     if (!promotion) {
       return internalJson({ message: "Không tìm thấy khuyến mãi." }, { status: 404 });
     }
+
+    await writeInternalAuditEvent({
+      action: "archive",
+      actor: user,
+      description: `Lưu trữ khuyến mãi ${promotion.title}.`,
+      entityId: promotion.promotionId,
+      entityType: "promotion",
+      request,
+    });
 
     return internalJson({ promotion });
   } catch (error) {

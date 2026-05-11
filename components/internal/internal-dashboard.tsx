@@ -2,9 +2,18 @@
 
 import { useQuery } from "@tanstack/react-query";
 import Link from "next/link";
-import { FiArrowRight, FiBarChart2, FiCalendar, FiGift, FiPackage } from "react-icons/fi";
+import { FiArrowRight, FiBarChart2, FiBell, FiCalendar, FiClipboard, FiFileText, FiGift, FiPackage, FiUsers } from "react-icons/fi";
 
-import { getInternalPromotions, getInternalRevenue, getInternalTours } from "@/lib/client/api-client";
+import {
+  getInternalAuditPage,
+  getInternalCustomerPage,
+  getInternalNotifications,
+  getInternalPromotions,
+  getInternalRevenue,
+  getInternalSuggestedTourPage,
+  getInternalTourApprovalPage,
+  getInternalTours,
+} from "@/lib/client/api-client";
 
 import { EmptyState, InternalPanel, InternalPageHeader, StatusPill } from "./internal-primitives";
 
@@ -25,9 +34,34 @@ export function InternalDashboard() {
     queryKey: ["internal", "revenue", "dashboard"],
     queryFn: () => getInternalRevenue(),
   });
+  const suggestedToursQuery = useQuery({
+    queryKey: ["internal", "suggested-tours", "dashboard"],
+    queryFn: () => getInternalSuggestedTourPage({ limit: 20, status: "pending" }),
+  });
+  const approvalsQuery = useQuery({
+    queryKey: ["internal", "tour-approvals", "dashboard"],
+    queryFn: () => getInternalTourApprovalPage({ limit: 20, status: "pending" }),
+  });
+  const customersQuery = useQuery({
+    queryKey: ["internal", "customers", "dashboard", "vip"],
+    queryFn: () => getInternalCustomerPage({ limit: 20, mode: "vip", value: "gold" }),
+  });
+  const notificationsQuery = useQuery({
+    queryKey: ["internal", "notifications", "dashboard", "unread"],
+    queryFn: () => getInternalNotifications({ limit: 20, status: "unread" }),
+  });
+  const auditQuery = useQuery({
+    queryKey: ["internal", "audit", "dashboard"],
+    queryFn: () => getInternalAuditPage({ limit: 5 }),
+  });
   const tours = toursQuery.data?.tours ?? [];
   const promotions = promotionsQuery.data?.promotions ?? [];
   const revenue = revenueQuery.data?.revenue;
+  const pendingSuggestions = suggestedToursQuery.data?.suggestions ?? [];
+  const pendingApprovals = approvalsQuery.data?.approvals ?? [];
+  const vipCustomers = customersQuery.data?.customers ?? [];
+  const unreadNotifications = notificationsQuery.data?.notifications ?? [];
+  const audits = auditQuery.data?.audits ?? [];
   const stats = [
     {
       href: "/internal/tours",
@@ -60,6 +94,38 @@ export function InternalDashboard() {
       value: promotions.length,
       tone:
         "border-violet-200 bg-violet-50 text-violet-700 hover:border-violet-300 dark:border-violet-950 dark:bg-violet-950/30 dark:text-violet-300",
+    },
+    {
+      href: "/internal/suggested-tours",
+      icon: FiClipboard,
+      label: "Tour đề xuất chờ xử lý",
+      value: pendingSuggestions.length,
+      tone:
+        "border-cyan-200 bg-cyan-50 text-cyan-700 hover:border-cyan-300 dark:border-cyan-950 dark:bg-cyan-950/30 dark:text-cyan-300",
+    },
+    {
+      href: "/internal/tour-approvals",
+      icon: FiFileText,
+      label: "Phê duyệt đang chờ",
+      value: pendingApprovals.length,
+      tone:
+        "border-orange-200 bg-orange-50 text-orange-700 hover:border-orange-300 dark:border-orange-950 dark:bg-orange-950/30 dark:text-orange-300",
+    },
+    {
+      href: "/internal/customers/vip",
+      icon: FiUsers,
+      label: "VIP customers",
+      value: vipCustomers.length,
+      tone:
+        "border-fuchsia-200 bg-fuchsia-50 text-fuchsia-700 hover:border-fuchsia-300 dark:border-fuchsia-950 dark:bg-fuchsia-950/30 dark:text-fuchsia-300",
+    },
+    {
+      href: "/internal/notifications",
+      icon: FiBell,
+      label: "Thông báo chưa đọc",
+      value: unreadNotifications.length,
+      tone:
+        "border-rose-200 bg-rose-50 text-rose-700 hover:border-rose-300 dark:border-rose-950 dark:bg-rose-950/30 dark:text-rose-300",
     },
   ];
 
@@ -161,6 +227,32 @@ export function InternalDashboard() {
           )}
         </InternalPanel>
       </div>
+
+      <InternalPanel className="p-4">
+        <div className="mb-4 flex items-center justify-between">
+          <h3 className="text-base font-semibold text-slate-950 dark:text-neutral-50">Audit gần đây</h3>
+          <Link className="text-sm font-semibold text-sky-700 dark:text-sky-300" href="/internal/audit">
+            Xem audit
+          </Link>
+        </div>
+        {audits.length === 0 ? (
+          <EmptyState message="Chưa có audit log cho tài khoản hiện tại." />
+        ) : (
+          <div className="grid gap-3 lg:grid-cols-2">
+            {audits.map((audit) => (
+              <div className="rounded-xl border border-slate-200 p-3 dark:border-neutral-800" key={audit.auditId}>
+                <div className="flex items-start justify-between gap-3">
+                  <p className="text-sm font-semibold text-slate-950 dark:text-neutral-50">{audit.description}</p>
+                  <StatusPill value={audit.action} />
+                </div>
+                <p className="mt-1 text-xs text-slate-500 dark:text-neutral-400">
+                  {audit.entityType} {audit.entityId ? `- ${audit.entityId}` : ""}
+                </p>
+              </div>
+            ))}
+          </div>
+        )}
+      </InternalPanel>
     </div>
   );
 }

@@ -179,13 +179,14 @@ export async function registerCustomer(input: RegisterRequest, request: Request)
 
   await executeQuery(
     `INSERT INTO customers_by_id
-      (user_id, email, full_name, phone, customer_tier, vip_tier, loyalty_points, total_bookings, total_spent, violation_count, last_booking_at, created_at)
-     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+      (user_id, email, full_name, phone, status, customer_tier, vip_tier, loyalty_points, total_bookings, total_spent, violation_count, last_booking_at, created_at)
+     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
     [
       userId,
       input.email,
       input.fullName,
       input.phone,
+      ACTIVE_STATUS,
       DEFAULT_CUSTOMER_TIER,
       DEFAULT_VIP_TIER,
       0,
@@ -196,6 +197,68 @@ export async function registerCustomer(input: RegisterRequest, request: Request)
       now,
     ],
   );
+  await Promise.all([
+    executeQuery(
+      `INSERT INTO customers_by_status
+        (status, created_at, user_id, email, full_name, phone, customer_tier, vip_tier, loyalty_points, total_bookings, total_spent, violation_count, last_booking_at)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+      [
+        ACTIVE_STATUS,
+        now,
+        userId,
+        input.email,
+        input.fullName,
+        input.phone,
+        DEFAULT_CUSTOMER_TIER,
+        DEFAULT_VIP_TIER,
+        0,
+        0,
+        "0",
+        0,
+        null,
+      ],
+    ),
+    executeQuery(
+      `INSERT INTO customers_by_tier
+        (customer_tier, loyalty_points, user_id, email, full_name, phone, status, vip_tier, total_bookings, total_spent, violation_count, last_booking_at, created_at)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+      [
+        DEFAULT_CUSTOMER_TIER,
+        0,
+        userId,
+        input.email,
+        input.fullName,
+        input.phone,
+        ACTIVE_STATUS,
+        DEFAULT_VIP_TIER,
+        0,
+        "0",
+        0,
+        null,
+        now,
+      ],
+    ),
+    executeQuery(
+      `INSERT INTO customers_by_vip_tier
+        (vip_tier, loyalty_points, user_id, email, full_name, phone, status, customer_tier, total_bookings, total_spent, violation_count, last_booking_at, created_at)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+      [
+        DEFAULT_VIP_TIER,
+        0,
+        userId,
+        input.email,
+        input.fullName,
+        input.phone,
+        ACTIVE_STATUS,
+        DEFAULT_CUSTOMER_TIER,
+        0,
+        "0",
+        0,
+        null,
+        now,
+      ],
+    ),
+  ]);
 
   await executeQuery(
     `INSERT INTO user_profile_by_id

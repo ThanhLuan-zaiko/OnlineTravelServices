@@ -1,6 +1,6 @@
 import { requireAdministrativeStaff } from "@/lib/server/internal-auth";
 import { internalErrorResponse, internalJson } from "@/lib/server/internal-api";
-import { findInternalDestination, restoreInternalDestination } from "@/lib/server/internal-data";
+import { findInternalDestination, restoreInternalDestination, writeInternalAuditEvent } from "@/lib/server/internal-data";
 import { assertSameOriginRequest } from "@/lib/server/request-security";
 
 export const dynamic = "force-dynamic";
@@ -28,6 +28,15 @@ export async function PATCH(request: Request, context: RouteContext) {
     if (!restored) {
       return internalJson({ message: "Không thể khôi phục địa điểm." }, { status: 500 });
     }
+
+    await writeInternalAuditEvent({
+      action: "restore",
+      actor: user,
+      description: `Khôi phục địa điểm ${restored.name}.`,
+      entityId: restored.destinationId,
+      entityType: "destination",
+      request,
+    });
 
     return internalJson({ destination: restored });
   } catch (error) {

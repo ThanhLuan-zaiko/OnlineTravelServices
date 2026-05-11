@@ -105,6 +105,12 @@ export const tourVehicleStatusSchema = z.enum(["active", "inactive", "maintenanc
 export const vehicleCatalogStatusSchema = z.enum(["active", "inactive", "archived"]);
 export const promotionStatusSchema = z.enum(["archived", "draft", "expired", "published", "scheduled"]);
 export const scheduleStatusSchema = z.enum(["cancelled", "closed", "open"]);
+export const suggestedTourStatusSchema = z.enum(["approved", "converted", "pending", "rejected"]);
+export const suggestedTourDecisionSchema = z.enum(["approved", "converted", "rejected"]);
+export const tourApprovalStatusSchema = z.enum(["approved", "change_requested", "pending", "rejected"]);
+export const tourApprovalDecisionSchema = z.enum(["approved", "change_requested", "rejected"]);
+export const staffNotificationStatusSchema = z.enum(["all", "read", "unread"]);
+export const customerListModeSchema = z.enum(["all", "status", "tier", "vip"]);
 
 export type VehicleCatalogOption = {
   id: string;
@@ -182,6 +188,10 @@ export const promotionMutationSchema = z.object({
   status: promotionStatusSchema,
   promotionType: z.string().trim().min(2, "Vui lòng nhập loại khuyến mãi."),
   customerTier: z.string().trim().min(2, "Vui lòng nhập hạng khách hàng."),
+  customerSegment: z.enum(["all", "regular", "vip"]).default("all"),
+  regularGiftTitle: optionalTextSchema,
+  vipGiftTitle: optionalTextSchema,
+  vipDiscountPriority: z.coerce.number().int().min(0, "Ưu tiên VIP không hợp lệ.").max(100, "Ưu tiên VIP không hợp lệ.").default(0),
   discountType: z.enum(["amount", "percent"]),
   discountValue: decimalStringSchema,
   maxDiscountAmount: decimalStringSchema.nullable().optional(),
@@ -266,6 +276,61 @@ export const vehicleCatalogMutationSchema = z.object({
   status: vehicleCatalogStatusSchema,
 });
 
+export const suggestedTourMutationSchema = z.object({
+  budgetAmount: decimalStringSchema,
+  currency: z.string().trim().min(3).max(3).toUpperCase(),
+  destinationId: z.string().trim().uuid("Destination ID không hợp lệ.").nullable().optional(),
+  destinationName: z.string().trim().min(2, "Vui lòng nhập điểm đến."),
+  estimatedGuests: z.coerce.number().int().positive("Số khách dự kiến không hợp lệ."),
+  feasibilityIssues: z.array(z.string().trim().min(1)).default([]),
+  feasibilityScore: z.coerce.number().int().min(0, "Điểm khả thi không hợp lệ.").max(100, "Điểm khả thi không hợp lệ."),
+  itinerarySummary: z.string().trim().min(3, "Vui lòng nhập tóm tắt lịch trình."),
+  proposedBy: z.string().trim().uuid("Customer ID không hợp lệ.").nullable().optional(),
+  proposedByName: optionalTextSchema,
+  proposedEndDate: dateSchema.nullable().optional(),
+  proposedStartDate: dateSchema.nullable().optional(),
+  safetyLevel: z.string().trim().min(2, "Vui lòng nhập mức an toàn."),
+  serviceSummary: z.string().trim().min(3, "Vui lòng nhập tóm tắt dịch vụ."),
+  sourceType: z.string().trim().min(2, "Vui lòng nhập nguồn đề xuất."),
+  status: suggestedTourStatusSchema.default("pending"),
+  title: z.string().trim().min(3, "Vui lòng nhập tên tour đề xuất."),
+});
+
+export const suggestedTourDecisionRequestSchema = z.object({
+  alternativeSuggestion: optionalTextSchema,
+  decision: suggestedTourDecisionSchema,
+  decisionNote: z.string().trim().min(2, "Vui lòng nhập ghi chú quyết định."),
+  publishConvertedTour: z.coerce.boolean().default(false),
+});
+
+export const tourApprovalMutationSchema = z.object({
+  requestNote: optionalTextSchema,
+  requestedByName: optionalTextSchema,
+  riskFlags: z.array(z.string().trim().min(1)).default([]),
+  tourId: z.string().trim().uuid("Tour ID không hợp lệ."),
+  tourTitle: z.string().trim().min(2, "Vui lòng nhập tên tour."),
+});
+
+export const tourApprovalDecisionRequestSchema = z.object({
+  changeRequestDetail: optionalTextSchema,
+  decision: tourApprovalDecisionSchema,
+  reviewNote: z.string().trim().min(2, "Vui lòng nhập ghi chú duyệt."),
+});
+
+export const customerTierMutationSchema = z.object({
+  customerTier: z.string().trim().min(2, "Vui lòng nhập hạng khách hàng."),
+  vipTier: z.string().trim().min(2, "Vui lòng nhập hạng VIP."),
+});
+
+export const customerRewardMutationSchema = z.object({
+  description: optionalTextSchema,
+  expiresAt: timestampSchema.nullable().optional(),
+  pointsDelta: z.coerce.number().int("Điểm thưởng phải là số nguyên."),
+  promotionId: z.string().trim().uuid("Promotion ID không hợp lệ.").nullable().optional(),
+  rewardType: z.string().trim().min(2, "Vui lòng nhập loại quà."),
+  title: z.string().trim().min(2, "Vui lòng nhập tên quà."),
+});
+
 export type InternalLoginRequest = z.infer<typeof internalLoginRequestSchema>;
 export type InternalAccountProfileRequest = z.infer<typeof internalAccountProfileRequestSchema>;
 export type TourMutationRequest = z.infer<typeof tourMutationSchema>;
@@ -277,6 +342,12 @@ export type ServiceCatalogMutationRequest = z.infer<typeof serviceCatalogMutatio
 export type ServiceProviderMutationRequest = z.infer<typeof serviceProviderMutationSchema>;
 export type TourVehicleMutationRequest = z.infer<typeof tourVehicleMutationSchema>;
 export type VehicleCatalogMutationRequest = z.infer<typeof vehicleCatalogMutationSchema>;
+export type SuggestedTourMutationRequest = z.infer<typeof suggestedTourMutationSchema>;
+export type SuggestedTourDecisionRequest = z.infer<typeof suggestedTourDecisionRequestSchema>;
+export type TourApprovalMutationRequest = z.infer<typeof tourApprovalMutationSchema>;
+export type TourApprovalDecisionRequest = z.infer<typeof tourApprovalDecisionRequestSchema>;
+export type CustomerTierMutationRequest = z.infer<typeof customerTierMutationSchema>;
+export type CustomerRewardMutationRequest = z.infer<typeof customerRewardMutationSchema>;
 
 export type InternalTour = TourMutationRequest & {
   approvedBy: string | null;
@@ -302,6 +373,7 @@ export type InternalPromotion = PromotionMutationRequest & {
   createdBy: string | null;
   imageUrl: string | null;
   promotionId: string;
+  revenueImpact: string;
   thumbnailUrl: string | null;
   usedCount: number;
 };
@@ -460,6 +532,91 @@ export type InternalRevenueResponse = {
     title: string;
     tourId: string;
   }>;
+};
+
+export type InternalSuggestedTour = SuggestedTourMutationRequest & {
+  alternativeSuggestion: string | null;
+  convertedTourId: string | null;
+  createdAt: string;
+  decisionAt: string | null;
+  decisionBy: string | null;
+  decisionNote: string | null;
+  suggestionId: string;
+};
+
+export type InternalTourApproval = TourApprovalMutationRequest & {
+  approvalId: string;
+  changeRequestDetail: string | null;
+  requestedAt: string;
+  requestedBy: string | null;
+  reviewedAt: string | null;
+  reviewedBy: string | null;
+  reviewNote: string | null;
+  status: z.infer<typeof tourApprovalStatusSchema>;
+};
+
+export type InternalCustomerProfile = {
+  createdAt: string;
+  customerTier: string;
+  email: string;
+  fullName: string;
+  lastBookingAt: string | null;
+  loyaltyPoints: number;
+  phone: string;
+  status: string;
+  totalBookings: number;
+  totalSpent: string;
+  userId: string;
+  violationCount: number;
+  vipTier: string;
+};
+
+export type InternalCustomerHistory = {
+  amount: string | null;
+  detail: string | null;
+  entityId: string | null;
+  entityType: string | null;
+  eventTime: string;
+  eventType: string;
+  title: string;
+};
+
+export type InternalCustomerReward = {
+  description: string | null;
+  expiresAt: string | null;
+  pointsDelta: number;
+  promotionId: string | null;
+  redeemedAt: string | null;
+  rewardTime: string;
+  rewardType: string;
+  status: "active" | "expired" | "redeemed";
+  title: string;
+  userId: string;
+};
+
+export type InternalAuditEvent = {
+  action: string;
+  actorId: string;
+  actorRole: string;
+  auditId: string;
+  description: string;
+  entityId: string | null;
+  entityType: string;
+  eventTime: string;
+  ipAddress: string | null;
+};
+
+export type InternalStaffNotification = {
+  body: string;
+  entityId: string | null;
+  entityLabel: string | null;
+  entityType: string | null;
+  notificationId: string;
+  notificationTime: string;
+  notificationType: string;
+  readAt: string | null;
+  staffId: string;
+  title: string;
 };
 
 export type InternalAccountProfile = {

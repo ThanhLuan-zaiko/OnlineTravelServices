@@ -1,6 +1,6 @@
 import { requireAdministrativeStaff } from "@/lib/server/internal-auth";
 import { internalErrorResponse, internalJson } from "@/lib/server/internal-api";
-import { findDestinationMedia, findInternalDestination, setDestinationCoverImage } from "@/lib/server/internal-data";
+import { findDestinationMedia, findInternalDestination, setDestinationCoverImage, writeInternalAuditEvent } from "@/lib/server/internal-data";
 import { assertSameOriginRequest } from "@/lib/server/request-security";
 
 export const dynamic = "force-dynamic";
@@ -16,7 +16,7 @@ type RouteContext = {
 export async function PATCH(request: Request, context: RouteContext) {
   try {
     assertSameOriginRequest(request);
-    await requireAdministrativeStaff(request);
+    const user = await requireAdministrativeStaff(request);
     const { destinationId, mediaId } = await context.params;
     const destination = await findInternalDestination(destinationId);
 
@@ -31,6 +31,15 @@ export async function PATCH(request: Request, context: RouteContext) {
     }
 
     await setDestinationCoverImage(destinationId, media.mediaUrl);
+
+    await writeInternalAuditEvent({
+      action: "media_cover",
+      actor: user,
+      description: `Đặt ảnh đại diện cho địa điểm ${destination.name}.`,
+      entityId: destination.destinationId,
+      entityType: "destination",
+      request,
+    });
 
     return internalJson({ media });
   } catch (error) {

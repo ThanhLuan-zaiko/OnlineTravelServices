@@ -1,6 +1,6 @@
 import { requireAdministrativeStaff } from "@/lib/server/internal-auth";
 import { internalErrorResponse, internalJson } from "@/lib/server/internal-api";
-import { createInternalPromotion, listInternalPromotions, listInternalPromotionsPage } from "@/lib/server/internal-data";
+import { createInternalPromotion, listInternalPromotions, listInternalPromotionsPage, writeInternalAuditEvent } from "@/lib/server/internal-data";
 import { assertSameOriginRequest } from "@/lib/server/request-security";
 import { promotionMutationSchema, promotionStatusSchema } from "@/lib/shared/internal";
 
@@ -41,6 +41,17 @@ export async function POST(request: Request) {
     const user = await requireAdministrativeStaff(request);
     const input = promotionMutationSchema.parse(await request.json());
     const promotion = await createInternalPromotion(input, user.userId);
+
+    if (promotion) {
+      await writeInternalAuditEvent({
+        action: "create",
+        actor: user,
+        description: `Tạo khuyến mãi ${promotion.title}.`,
+        entityId: promotion.promotionId,
+        entityType: "promotion",
+        request,
+      });
+    }
 
     return internalJson({ promotion }, { status: 201 });
   } catch (error) {

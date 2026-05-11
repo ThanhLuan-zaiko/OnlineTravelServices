@@ -226,8 +226,8 @@ export function TourManager() {
       setMediaTarget(response.tour);
       setForm(buildForm(response.tour));
       if (selectedFiles.length > 0) {
-        for (const file of selectedFiles) {
-          await uploadInternalTourMedia(response.tour.tourId, { file, isCover: !response.tour.coverImageUrl, mediaType: "image" });
+        for (const [index, file] of selectedFiles.entries()) {
+          await uploadInternalTourMedia(response.tour.tourId, { file, isCover: !response.tour.coverImageUrl && index === 0, mediaType: "image" });
         }
         setSelectedFiles([]);
         await queryClient.invalidateQueries({ queryKey: ["internal", "tour-media", response.tour.tourId] });
@@ -242,8 +242,8 @@ export function TourManager() {
   const uploadMutation = useMutation({
     mutationFn: async () => {
       const target = mediaTarget ?? editing;
-      for (const file of selectedFiles) {
-        await uploadInternalTourMedia(target?.tourId ?? "", { file, isCover: (mediaQuery.data?.media ?? []).length === 0, mediaType: "image" });
+      for (const [index, file] of selectedFiles.entries()) {
+        await uploadInternalTourMedia(target?.tourId ?? "", { file, isCover: (mediaQuery.data?.media ?? []).length === 0 && index === 0, mediaType: "image" });
       }
     },
     onSuccess: async () => { setSelectedFiles([]); await queryClient.invalidateQueries({ queryKey: ["internal", "tour-media"] }); await queryClient.invalidateQueries({ queryKey: ["internal", "tours"] }); },
@@ -364,7 +364,7 @@ export function TourManager() {
               <div className="flex flex-wrap gap-3"><button className="inline-flex h-11 items-center justify-center gap-2 rounded-xl bg-gradient-to-r from-sky-600 via-cyan-600 to-emerald-600 px-4 text-sm font-semibold text-white disabled:opacity-70" disabled={saveMutation.isPending} type="submit"><FiSave size={17} />{selectedFiles.length > 0 ? `Lưu và upload ${selectedFiles.length} ảnh` : "Lưu tour"}</button><button className="inline-flex h-11 items-center rounded-xl border border-slate-200 px-4 text-sm font-semibold dark:border-neutral-800" onClick={resetForm} type="button">Làm mới</button></div>
             </form>
           </InternalPanel>
-          <MediaPanel disabled={!editing || saveMutation.isPending} emptyLabel={editing ? "Chưa có ảnh trong gallery." : "Lưu tour trước khi upload ảnh."} media={media as MediaItem[]} mediaPending={mediaQuery.isLoading} onDeleteMedia={(item) => setDangerAction({ kind: "delete-media", media: item as InternalTourMedia })} onSelectFiles={setSelectedFiles} onSetCover={(item) => setCoverMutation.mutate(item as InternalTourMedia)} onUpload={() => uploadMutation.mutate()} selectedFiles={selectedFiles} targetLabel={editing ? `Ảnh của ${editing.title}` : "Ảnh tour"} uploadPending={uploadMutation.isPending} />
+          <MediaPanel disabled={!editing || saveMutation.isPending} emptyLabel={editing ? "Chưa có ảnh trong gallery." : "Lưu tour trước khi upload ảnh."} fileSelectionDisabled={saveMutation.isPending} media={media as MediaItem[]} mediaPending={mediaQuery.isLoading} onDeleteMedia={(item) => setDangerAction({ kind: "delete-media", media: item as InternalTourMedia })} onSelectFiles={setSelectedFiles} onSetCover={(item) => setCoverMutation.mutate(item as InternalTourMedia)} onUpload={() => uploadMutation.mutate()} selectedFiles={selectedFiles} targetLabel={editing ? `Ảnh của ${editing.title}` : "Ảnh tour"} uploadPending={uploadMutation.isPending} />
         </div>
       ) : null}
 

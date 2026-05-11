@@ -125,6 +125,7 @@ CREATE TABLE IF NOT EXISTS customers_by_id (
   email text,
   full_name text,
   phone text,
+  status text,
   customer_tier text,
   vip_tier text,
   loyalty_points int,
@@ -135,6 +136,57 @@ CREATE TABLE IF NOT EXISTS customers_by_id (
   created_at timestamp,
   PRIMARY KEY ((user_id))
 );
+
+CREATE TABLE IF NOT EXISTS customers_by_status (
+  status text,
+  created_at timestamp,
+  user_id uuid,
+  email text,
+  full_name text,
+  phone text,
+  customer_tier text,
+  vip_tier text,
+  loyalty_points int,
+  total_bookings int,
+  total_spent decimal,
+  violation_count int,
+  last_booking_at timestamp,
+  PRIMARY KEY ((status), created_at, user_id)
+) WITH CLUSTERING ORDER BY (created_at DESC, user_id ASC);
+
+CREATE TABLE IF NOT EXISTS customers_by_tier (
+  customer_tier text,
+  loyalty_points int,
+  user_id uuid,
+  email text,
+  full_name text,
+  phone text,
+  status text,
+  vip_tier text,
+  total_bookings int,
+  total_spent decimal,
+  violation_count int,
+  last_booking_at timestamp,
+  created_at timestamp,
+  PRIMARY KEY ((customer_tier), loyalty_points, user_id)
+) WITH CLUSTERING ORDER BY (loyalty_points DESC, user_id ASC);
+
+CREATE TABLE IF NOT EXISTS customers_by_vip_tier (
+  vip_tier text,
+  loyalty_points int,
+  user_id uuid,
+  email text,
+  full_name text,
+  phone text,
+  status text,
+  customer_tier text,
+  total_bookings int,
+  total_spent decimal,
+  violation_count int,
+  last_booking_at timestamp,
+  created_at timestamp,
+  PRIMARY KEY ((vip_tier), loyalty_points, user_id)
+) WITH CLUSTERING ORDER BY (loyalty_points DESC, user_id ASC);
 
 CREATE TABLE IF NOT EXISTS vip_customers_by_tier (
   vip_tier text,
@@ -193,6 +245,20 @@ CREATE TABLE IF NOT EXISTS customer_rewards (
   redeemed_at timestamp,
   PRIMARY KEY ((user_id), reward_time)
 ) WITH CLUSTERING ORDER BY (reward_time DESC);
+
+CREATE TABLE IF NOT EXISTS customer_rewards_by_status (
+  status text,
+  expires_at timestamp,
+  user_id uuid,
+  reward_time timeuuid,
+  reward_type text,
+  title text,
+  description text,
+  points_delta int,
+  promotion_id uuid,
+  redeemed_at timestamp,
+  PRIMARY KEY ((status), expires_at, user_id, reward_time)
+) WITH CLUSTERING ORDER BY (expires_at ASC, user_id ASC, reward_time DESC);
 
 -- Staff, administration, and operations.
 
@@ -897,6 +963,10 @@ CREATE TABLE IF NOT EXISTS promotions_by_id (
   status text,
   promotion_type text,
   customer_tier text,
+  customer_segment text,
+  regular_gift_title text,
+  vip_gift_title text,
+  vip_discount_priority int,
   discount_type text,
   discount_value decimal,
   max_discount_amount decimal,
@@ -904,6 +974,7 @@ CREATE TABLE IF NOT EXISTS promotions_by_id (
   end_at timestamp,
   usage_limit int,
   used_count int,
+  revenue_impact decimal,
   created_by uuid,
   thumbnail_url text,
   PRIMARY KEY ((promotion_id))
@@ -929,6 +1000,7 @@ CREATE TABLE IF NOT EXISTS promotions_by_status (
   code text,
   title text,
   customer_tier text,
+  customer_segment text,
   discount_type text,
   discount_value decimal,
   end_at timestamp,
@@ -994,6 +1066,7 @@ CREATE TABLE IF NOT EXISTS notifications_by_staff (
   body text,
   entity_type text,
   entity_id uuid,
+  entity_label text,
   read_at timestamp,
   PRIMARY KEY ((staff_id), notification_time, notification_id)
 ) WITH CLUSTERING ORDER BY (notification_time DESC, notification_id ASC);
@@ -1128,12 +1201,79 @@ CREATE TABLE IF NOT EXISTS tour_approval_requests (
   requested_at timeuuid,
   approval_id uuid,
   tour_id uuid,
+  tour_title text,
   requested_by uuid,
+  requested_by_name text,
+  request_note text,
+  risk_flags list<text>,
   reviewed_by uuid,
   review_note text,
   reviewed_at timestamp,
+  change_request_detail text,
   PRIMARY KEY ((status), requested_at, approval_id)
 ) WITH CLUSTERING ORDER BY (requested_at DESC, approval_id ASC);
+
+CREATE TABLE IF NOT EXISTS tour_approval_requests_by_id (
+  approval_id uuid,
+  status text,
+  requested_at timeuuid,
+  tour_id uuid,
+  tour_title text,
+  requested_by uuid,
+  requested_by_name text,
+  request_note text,
+  risk_flags list<text>,
+  reviewed_by uuid,
+  review_note text,
+  reviewed_at timestamp,
+  change_request_detail text,
+  PRIMARY KEY ((approval_id))
+);
+
+CREATE TABLE IF NOT EXISTS tour_approval_requests_by_tour (
+  tour_id uuid,
+  requested_at timeuuid,
+  approval_id uuid,
+  status text,
+  tour_title text,
+  requested_by uuid,
+  requested_by_name text,
+  request_note text,
+  risk_flags list<text>,
+  reviewed_by uuid,
+  review_note text,
+  reviewed_at timestamp,
+  change_request_detail text,
+  PRIMARY KEY ((tour_id), requested_at, approval_id)
+) WITH CLUSTERING ORDER BY (requested_at DESC, approval_id ASC);
+
+CREATE TABLE IF NOT EXISTS suggested_tours_by_id (
+  suggestion_id uuid,
+  status text,
+  created_at timeuuid,
+  source_type text,
+  title text,
+  destination_id uuid,
+  destination_name text,
+  proposed_by uuid,
+  proposed_by_name text,
+  budget_amount decimal,
+  currency text,
+  estimated_guests int,
+  proposed_start_date date,
+  proposed_end_date date,
+  itinerary_summary text,
+  service_summary text,
+  safety_level text,
+  feasibility_score int,
+  feasibility_issues list<text>,
+  decision_by uuid,
+  decision_at timestamp,
+  decision_note text,
+  alternative_suggestion text,
+  converted_tour_id uuid,
+  PRIMARY KEY ((suggestion_id))
+);
 
 CREATE TABLE IF NOT EXISTS suggested_tours_by_status (
   status text,
@@ -1142,9 +1282,24 @@ CREATE TABLE IF NOT EXISTS suggested_tours_by_status (
   source_type text,
   title text,
   destination_id uuid,
+  destination_name text,
   proposed_by uuid,
+  proposed_by_name text,
+  budget_amount decimal,
+  currency text,
+  estimated_guests int,
+  proposed_start_date date,
+  proposed_end_date date,
+  itinerary_summary text,
+  service_summary text,
+  safety_level text,
   feasibility_score int,
+  feasibility_issues list<text>,
+  decision_by uuid,
+  decision_at timestamp,
   decision_note text,
+  alternative_suggestion text,
+  converted_tour_id uuid,
   PRIMARY KEY ((status), created_at, suggestion_id)
 ) WITH CLUSTERING ORDER BY (created_at DESC, suggestion_id ASC);
 

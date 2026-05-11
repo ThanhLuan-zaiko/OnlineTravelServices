@@ -1,6 +1,6 @@
 import { requireAdministrativeStaff } from "@/lib/server/internal-auth";
 import { internalErrorResponse, internalJson } from "@/lib/server/internal-api";
-import { findInternalPromotion, findPromotionMedia, setPromotionMediaCover } from "@/lib/server/internal-data";
+import { findInternalPromotion, findPromotionMedia, setPromotionMediaCover, writeInternalAuditEvent } from "@/lib/server/internal-data";
 import { assertSameOriginRequest } from "@/lib/server/request-security";
 
 export const dynamic = "force-dynamic";
@@ -16,7 +16,7 @@ type RouteContext = {
 export async function PATCH(request: Request, context: RouteContext) {
   try {
     assertSameOriginRequest(request);
-    await requireAdministrativeStaff(request);
+    const user = await requireAdministrativeStaff(request);
     const { mediaId, promotionId } = await context.params;
     const promotion = await findInternalPromotion(promotionId);
 
@@ -35,6 +35,15 @@ export async function PATCH(request: Request, context: RouteContext) {
     if (!media) {
       return internalJson({ message: "Không tìm thấy ảnh." }, { status: 404 });
     }
+
+    await writeInternalAuditEvent({
+      action: "media_cover",
+      actor: user,
+      description: `Đặt ảnh đại diện cho khuyến mãi ${promotion.title}.`,
+      entityId: promotion.promotionId,
+      entityType: "promotion",
+      request,
+    });
 
     return internalJson({ media });
   } catch (error) {

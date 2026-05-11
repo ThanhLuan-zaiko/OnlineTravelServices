@@ -1,6 +1,6 @@
 import { requireAdministrativeStaff } from "@/lib/server/internal-auth";
 import { internalErrorResponse, internalJson } from "@/lib/server/internal-api";
-import { findInternalVehicleCatalog, setVehicleCatalogMediaCover } from "@/lib/server/internal-data";
+import { findInternalVehicleCatalog, setVehicleCatalogMediaCover, writeInternalAuditEvent } from "@/lib/server/internal-data";
 import { assertSameOriginRequest } from "@/lib/server/request-security";
 
 export const dynamic = "force-dynamic";
@@ -16,7 +16,7 @@ type RouteContext = {
 export async function PATCH(request: Request, context: RouteContext) {
   try {
     assertSameOriginRequest(request);
-    await requireAdministrativeStaff(request);
+    const user = await requireAdministrativeStaff(request);
     const { mediaId, vehicleCatalogId } = await context.params;
     const catalogItem = await findInternalVehicleCatalog(vehicleCatalogId);
 
@@ -29,6 +29,15 @@ export async function PATCH(request: Request, context: RouteContext) {
     if (!media) {
       return internalJson({ message: "Không tìm thấy ảnh." }, { status: 404 });
     }
+
+    await writeInternalAuditEvent({
+      action: "media_cover",
+      actor: user,
+      description: `Đặt ảnh đại diện cho phương tiện ${catalogItem.label}.`,
+      entityId: catalogItem.vehicleCatalogId,
+      entityType: "vehicle_catalog",
+      request,
+    });
 
     return internalJson({ media });
   } catch (error) {

@@ -1,6 +1,19 @@
 import "server-only";
 
 export {
+  listInternalAuditByActor,
+  listInternalAuditByEntity,
+  writeInternalAuditEvent,
+} from "@/lib/server/internal-data/audit";
+export {
+  addCustomerReward,
+  findInternalCustomer,
+  listCustomerHistory,
+  listCustomerRewards,
+  listInternalCustomers,
+  updateCustomerTier,
+} from "@/lib/server/internal-data/customers";
+export {
   addDestinationMedia,
   archiveInternalDestination,
   createInternalDestination,
@@ -37,6 +50,24 @@ export {
   setPromotionMediaCover,
   updateInternalPromotion,
 } from "@/lib/server/internal-data/promotions";
+export {
+  createStaffNotification,
+  listStaffNotifications,
+  markStaffNotificationRead,
+} from "@/lib/server/internal-data/notifications";
+export {
+  createSuggestedTour,
+  decideSuggestedTour,
+  findSuggestedTour,
+  listSuggestedToursPage,
+  updateSuggestedTour,
+} from "@/lib/server/internal-data/suggested-tours";
+export {
+  createTourApproval,
+  decideTourApproval,
+  findTourApproval,
+  listTourApprovalsPage,
+} from "@/lib/server/internal-data/tour-approvals";
 export {
   deleteItineraryItem,
   listItineraryByTour,

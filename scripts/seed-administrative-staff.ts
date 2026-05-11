@@ -6,6 +6,11 @@ import { z } from "zod";
 const ADMINISTRATIVE_STAFF_ROLE = "administrative_staff";
 const ACTIVE_STATUS = "active";
 const ADMINISTRATIVE_STAFF_PERMISSIONS = [
+  "audit:read",
+  "customer:manage",
+  "notification:read",
+  "suggested_tour:manage",
+  "tour_approval:manage",
   "tour:manage",
   "schedule:manage",
   "promotion:manage",

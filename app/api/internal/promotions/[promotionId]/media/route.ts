@@ -1,6 +1,6 @@
 import { requireAdministrativeStaff } from "@/lib/server/internal-auth";
 import { internalErrorResponse, internalJson } from "@/lib/server/internal-api";
-import { addPromotionMedia, findInternalPromotion, listPromotionMedia } from "@/lib/server/internal-data";
+import { addPromotionMedia, findInternalPromotion, listPromotionMedia, writeInternalAuditEvent } from "@/lib/server/internal-data";
 import { assertSameOriginRequest } from "@/lib/server/request-security";
 
 export const dynamic = "force-dynamic";
@@ -68,6 +68,17 @@ export async function POST(request: Request, context: RouteContext) {
       if (item) {
         media.push(item);
       }
+    }
+
+    if (media.length > 0) {
+      await writeInternalAuditEvent({
+        action: isCover ? "media_cover_upload" : "media_upload",
+        actor: user,
+        description: `Upload ${media.length} ảnh cho khuyến mãi ${promotion.title}.`,
+        entityId: promotion.promotionId,
+        entityType: "promotion",
+        request,
+      });
     }
 
     return internalJson({ media }, { status: 201 });

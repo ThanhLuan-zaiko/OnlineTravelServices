@@ -1,6 +1,6 @@
 import { requireAdministrativeStaff } from "@/lib/server/internal-auth";
 import { internalErrorResponse, internalJson } from "@/lib/server/internal-api";
-import { addTourMedia, findInternalTour, listTourMedia } from "@/lib/server/internal-data";
+import { addTourMedia, findInternalTour, listTourMedia, writeInternalAuditEvent } from "@/lib/server/internal-data";
 import { storeImageAsset } from "@/lib/server/media-storage";
 import { assertSameOriginRequest } from "@/lib/server/request-security";
 
@@ -67,6 +67,17 @@ export async function POST(request: Request, context: RouteContext) {
       title: title.length > 0 ? title : null,
       uploadedBy: user.userId,
     });
+
+    if (media) {
+      await writeInternalAuditEvent({
+        action: isCover ? "media_cover_upload" : "media_upload",
+        actor: user,
+        description: `Upload ảnh cho tour ${tour.title}.`,
+        entityId: tour.tourId,
+        entityType: "tour",
+        request,
+      });
+    }
 
     return internalJson({ media }, { status: 201 });
   } catch (error) {

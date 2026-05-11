@@ -1,6 +1,6 @@
 import { requireAdministrativeStaff } from "@/lib/server/internal-auth";
 import { internalErrorResponse, internalJson } from "@/lib/server/internal-api";
-import { createInternalService, listInternalDestinations, listInternalServices, listInternalServicesPage } from "@/lib/server/internal-data";
+import { createInternalService, listInternalDestinations, listInternalServices, listInternalServicesPage, writeInternalAuditEvent } from "@/lib/server/internal-data";
 import { assertSameOriginRequest } from "@/lib/server/request-security";
 import { serviceCatalogMutationSchema, serviceStatusSchema } from "@/lib/shared/internal";
 
@@ -50,13 +50,22 @@ export async function GET(request: Request) {
 export async function POST(request: Request) {
   try {
     assertSameOriginRequest(request);
-    await requireAdministrativeStaff(request);
+    const user = await requireAdministrativeStaff(request);
     const input = serviceCatalogMutationSchema.parse(await request.json());
     const service = await createInternalService(input);
 
     if (!service) {
       return internalJson({ message: "Không tìm thấy địa điểm." }, { status: 404 });
     }
+
+    await writeInternalAuditEvent({
+      action: "create",
+      actor: user,
+      description: `Tạo dịch vụ ${service.name}.`,
+      entityId: service.serviceId,
+      entityType: "service",
+      request,
+    });
 
     return internalJson({ service }, { status: 201 });
   } catch (error) {

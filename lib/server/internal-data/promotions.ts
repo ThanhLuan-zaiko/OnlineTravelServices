@@ -17,7 +17,8 @@ const RESTORE_FALLBACK_STATUS = "draft";
 
 function promotionColumns() {
   return `promotion_id, archived_at, archived_from_status, code, title, description, image_url, status, promotion_type, customer_tier,
-          discount_type, discount_value, max_discount_amount, start_at, end_at, usage_limit, used_count, created_by, thumbnail_url`;
+          customer_segment, regular_gift_title, vip_gift_title, vip_discount_priority,
+          discount_type, discount_value, max_discount_amount, start_at, end_at, usage_limit, used_count, revenue_impact, created_by, thumbnail_url`;
 }
 
 function clampPromotionPageSize(limit?: number) {
@@ -44,8 +45,8 @@ async function writePromotionProjections(promotionId: string, input: PromotionMu
   await Promise.all([
     executeQuery(
       `INSERT INTO promotions_by_status
-        (status, start_at, promotion_id, code, title, customer_tier, discount_type, discount_value, end_at)
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+        (status, start_at, promotion_id, code, title, customer_tier, customer_segment, discount_type, discount_value, end_at)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
       [
         input.status,
         new Date(input.startAt),
@@ -53,6 +54,7 @@ async function writePromotionProjections(promotionId: string, input: PromotionMu
         input.code,
         input.title,
         input.customerTier,
+        input.customerSegment,
         input.discountType,
         decimal(input.discountValue),
         new Date(input.endAt),
@@ -152,8 +154,9 @@ export async function createInternalPromotion(input: PromotionMutationRequest, a
   await executeQuery(
     `INSERT INTO promotions_by_id
       (promotion_id, archived_at, archived_from_status, code, title, description, image_url, status, promotion_type, customer_tier,
-       discount_type, discount_value, max_discount_amount, start_at, end_at, usage_limit, used_count, created_by, thumbnail_url)
-     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+       customer_segment, regular_gift_title, vip_gift_title, vip_discount_priority,
+       discount_type, discount_value, max_discount_amount, start_at, end_at, usage_limit, used_count, revenue_impact, created_by, thumbnail_url)
+     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
     [
       promotionId,
       null,
@@ -165,6 +168,10 @@ export async function createInternalPromotion(input: PromotionMutationRequest, a
       input.status,
       input.promotionType,
       input.customerTier,
+      input.customerSegment,
+      input.regularGiftTitle ?? null,
+      input.vipGiftTitle ?? null,
+      input.vipDiscountPriority,
       input.discountType,
       decimal(input.discountValue),
       input.maxDiscountAmount ? decimal(input.maxDiscountAmount) : null,
@@ -172,6 +179,7 @@ export async function createInternalPromotion(input: PromotionMutationRequest, a
       new Date(input.endAt),
       input.usageLimit,
       0,
+      decimal("0"),
       actorUserId,
       null,
     ],
@@ -191,7 +199,8 @@ export async function updateInternalPromotion(promotionId: string, input: Promot
   await executeQuery(
     `UPDATE promotions_by_id
      SET archived_at = ?, archived_from_status = ?, code = ?, title = ?, description = ?, image_url = ?, status = ?,
-         promotion_type = ?, customer_tier = ?, discount_type = ?, discount_value = ?, max_discount_amount = ?,
+         promotion_type = ?, customer_tier = ?, customer_segment = ?, regular_gift_title = ?, vip_gift_title = ?,
+         vip_discount_priority = ?, discount_type = ?, discount_value = ?, max_discount_amount = ?,
          start_at = ?, end_at = ?, usage_limit = ?, thumbnail_url = ?
      WHERE promotion_id = ?`,
     [
@@ -204,6 +213,10 @@ export async function updateInternalPromotion(promotionId: string, input: Promot
       input.status,
       input.promotionType,
       input.customerTier,
+      input.customerSegment,
+      input.regularGiftTitle ?? null,
+      input.vipGiftTitle ?? null,
+      input.vipDiscountPriority,
       input.discountType,
       decimal(input.discountValue),
       input.maxDiscountAmount ? decimal(input.maxDiscountAmount) : null,

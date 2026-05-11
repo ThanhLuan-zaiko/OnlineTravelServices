@@ -3,7 +3,7 @@ import path from "node:path";
 
 import { requireAdministrativeStaff } from "@/lib/server/internal-auth";
 import { internalErrorResponse, internalJson } from "@/lib/server/internal-api";
-import { deleteInternalService, findInternalService, hardDeleteInternalService, updateInternalService } from "@/lib/server/internal-data";
+import { deleteInternalService, findInternalService, hardDeleteInternalService, updateInternalService, writeInternalAuditEvent } from "@/lib/server/internal-data";
 import { assertSameOriginRequest } from "@/lib/server/request-security";
 import { serviceCatalogMutationSchema } from "@/lib/shared/internal";
 
@@ -54,7 +54,7 @@ async function removeServiceFolder(destinationId: string, serviceType: string, s
 export async function PATCH(request: Request, context: RouteContext) {
   try {
     assertSameOriginRequest(request);
-    await requireAdministrativeStaff(request);
+    const user = await requireAdministrativeStaff(request);
     const { destinationId, serviceId, serviceType } = await context.params;
     const input = serviceCatalogMutationSchema.parse(await request.json());
     const service = await updateInternalService(destinationId, serviceType, serviceId, input);
@@ -62,6 +62,15 @@ export async function PATCH(request: Request, context: RouteContext) {
     if (!service) {
       return internalJson({ message: "Không tìm thấy dịch vụ." }, { status: 404 });
     }
+
+    await writeInternalAuditEvent({
+      action: "update",
+      actor: user,
+      description: `Cập nhật dịch vụ ${service.name}.`,
+      entityId: service.serviceId,
+      entityType: "service",
+      request,
+    });
 
     return internalJson({ service });
   } catch (error) {
@@ -74,7 +83,7 @@ export async function PATCH(request: Request, context: RouteContext) {
 export async function DELETE(request: Request, context: RouteContext) {
   try {
     assertSameOriginRequest(request);
-    await requireAdministrativeStaff(request);
+    const user = await requireAdministrativeStaff(request);
     const { destinationId, serviceId, serviceType } = await context.params;
     const { searchParams } = new URL(request.url);
 
@@ -92,6 +101,15 @@ export async function DELETE(request: Request, context: RouteContext) {
       ]);
       await removeServiceFolder(destinationId, serviceType, serviceId);
 
+      await writeInternalAuditEvent({
+        action: "hard_delete",
+        actor: user,
+        description: `Xóa vĩnh viễn dịch vụ ${deleted.service.name}.`,
+        entityId: deleted.service.serviceId,
+        entityType: "service",
+        request,
+      });
+
       return internalJson({ message: "Dịch vụ đã bị xóa vĩnh viễn.", service: deleted.service });
     }
 
@@ -100,6 +118,15 @@ export async function DELETE(request: Request, context: RouteContext) {
     if (!service) {
       return internalJson({ message: "Không tìm thấy dịch vụ." }, { status: 404 });
     }
+
+    await writeInternalAuditEvent({
+      action: "archive",
+      actor: user,
+      description: `Lưu trữ dịch vụ ${service.name}.`,
+      entityId: service.serviceId,
+      entityType: "service",
+      request,
+    });
 
     return internalJson({ service });
   } catch (error) {

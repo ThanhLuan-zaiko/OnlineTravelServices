@@ -3,7 +3,7 @@ import path from "node:path";
 
 import { requireAdministrativeStaff } from "@/lib/server/internal-auth";
 import { internalErrorResponse, internalJson } from "@/lib/server/internal-api";
-import { deleteVehicleCatalogMedia, findInternalVehicleCatalog, findVehicleCatalogMedia } from "@/lib/server/internal-data";
+import { deleteVehicleCatalogMedia, findInternalVehicleCatalog, findVehicleCatalogMedia, writeInternalAuditEvent } from "@/lib/server/internal-data";
 import { assertSameOriginRequest } from "@/lib/server/request-security";
 
 export const dynamic = "force-dynamic";
@@ -26,7 +26,7 @@ async function removeStoredFile(publicUrl: string) {
 export async function DELETE(request: Request, context: RouteContext) {
   try {
     assertSameOriginRequest(request);
-    await requireAdministrativeStaff(request);
+    const user = await requireAdministrativeStaff(request);
     const { mediaId, vehicleCatalogId } = await context.params;
     const catalogItem = await findInternalVehicleCatalog(vehicleCatalogId);
 
@@ -46,6 +46,15 @@ export async function DELETE(request: Request, context: RouteContext) {
     if (!deleted) {
       return internalJson({ message: "Không tìm thấy ảnh." }, { status: 404 });
     }
+
+    await writeInternalAuditEvent({
+      action: "media_delete",
+      actor: user,
+      description: `Xóa ảnh khỏi phương tiện ${catalogItem.label}.`,
+      entityId: catalogItem.vehicleCatalogId,
+      entityType: "vehicle_catalog",
+      request,
+    });
 
     return internalJson({ media: deleted });
   } catch (error) {

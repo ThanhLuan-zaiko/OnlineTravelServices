@@ -3,7 +3,7 @@ import path from "node:path";
 
 import { requireAdministrativeStaff } from "@/lib/server/internal-auth";
 import { internalErrorResponse, internalJson } from "@/lib/server/internal-api";
-import { archiveInternalDestination, findInternalDestination, hardDeleteInternalDestination, updateInternalDestination } from "@/lib/server/internal-data";
+import { archiveInternalDestination, findInternalDestination, hardDeleteInternalDestination, updateInternalDestination, writeInternalAuditEvent } from "@/lib/server/internal-data";
 import { assertSameOriginRequest } from "@/lib/server/request-security";
 import { destinationMutationSchema } from "@/lib/shared/internal";
 
@@ -61,6 +61,15 @@ export async function PATCH(request: Request, context: RouteContext) {
       return internalJson({ message: "Không tìm thấy địa điểm." }, { status: 404 });
     }
 
+    await writeInternalAuditEvent({
+      action: "update",
+      actor: user,
+      description: `Cập nhật địa điểm ${destination.name}.`,
+      entityId: destination.destinationId,
+      entityType: "destination",
+      request,
+    });
+
     return internalJson({ destination });
   } catch (error) {
     return internalErrorResponse(error, "Không thể cập nhật địa điểm.", {
@@ -91,6 +100,15 @@ export async function DELETE(request: Request, context: RouteContext) {
         ]),
       );
 
+      await writeInternalAuditEvent({
+        action: "hard_delete",
+        actor: user,
+        description: `Xóa vĩnh viễn địa điểm ${deleted.destination.name}.`,
+        entityId: deleted.destination.destinationId,
+        entityType: "destination",
+        request,
+      });
+
       return internalJson({
         destination: deleted.destination,
         message: "Địa điểm đã bị xóa vĩnh viễn.",
@@ -102,6 +120,15 @@ export async function DELETE(request: Request, context: RouteContext) {
     if (!destination) {
       return internalJson({ message: "Không tìm thấy địa điểm." }, { status: 404 });
     }
+
+    await writeInternalAuditEvent({
+      action: "archive",
+      actor: user,
+      description: `Lưu trữ địa điểm ${destination.name}.`,
+      entityId: destination.destinationId,
+      entityType: "destination",
+      request,
+    });
 
     return internalJson({ destination });
   } catch (error) {

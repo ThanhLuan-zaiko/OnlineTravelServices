@@ -308,6 +308,14 @@ export function DestinationManagerMedia({
                       <FiEye size={16} />
                       Xem toàn cảnh
                     </button>
+                    <button
+                      className="mb-3 ml-0 inline-flex h-10 items-center justify-center gap-2 rounded-xl border border-rose-200 bg-white px-4 text-sm font-semibold text-rose-700 transition hover:-translate-y-0.5 dark:border-rose-950 dark:bg-neutral-950 dark:text-rose-300 sm:ml-0"
+                      onClick={() => onSelectFile(null)}
+                      type="button"
+                    >
+                      <FiTrash2 size={16} />
+                      Gỡ ảnh
+                    </button>
                   </div>
                 ) : null}
                 <label className="space-y-2">

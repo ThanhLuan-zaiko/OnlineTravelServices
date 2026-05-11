@@ -261,7 +261,12 @@ export type PromotionRow = {
   title: string;
   thumbnail_url: string | null;
   usage_limit: number;
+  customer_segment: "all" | "regular" | "vip" | null;
+  regular_gift_title: string | null;
+  revenue_impact: unknown | null;
   used_count: number | null;
+  vip_discount_priority: number | null;
+  vip_gift_title: string | null;
 };
 
 export type PromotionMediaRow = {
@@ -533,6 +538,7 @@ export function toPromotion(row: PromotionRow): InternalPromotion {
     createdBy: row.created_by ? String(row.created_by) : null,
     customerTier: row.customer_tier,
     description: row.description,
+    customerSegment: row.customer_segment ?? "all",
     discountType: row.discount_type,
     discountValue: decimalToString(row.discount_value),
     endAt: row.end_at.toISOString(),
@@ -540,12 +546,16 @@ export function toPromotion(row: PromotionRow): InternalPromotion {
     maxDiscountAmount: row.max_discount_amount ? decimalToString(row.max_discount_amount) : null,
     promotionId: String(row.promotion_id),
     promotionType: row.promotion_type,
+    regularGiftTitle: row.regular_gift_title,
+    revenueImpact: decimalToString(row.revenue_impact),
     startAt: row.start_at.toISOString(),
     status: row.status,
     thumbnailUrl: row.thumbnail_url,
     title: row.title,
     usageLimit: row.usage_limit,
     usedCount: row.used_count ?? 0,
+    vipDiscountPriority: row.vip_discount_priority ?? 0,
+    vipGiftTitle: row.vip_gift_title,
   };
 }
 

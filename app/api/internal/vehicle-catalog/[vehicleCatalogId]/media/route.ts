@@ -1,6 +1,6 @@
 import { requireAdministrativeStaff } from "@/lib/server/internal-auth";
 import { internalErrorResponse, internalJson } from "@/lib/server/internal-api";
-import { addVehicleCatalogMedia, findInternalVehicleCatalog, listVehicleCatalogMedia } from "@/lib/server/internal-data";
+import { addVehicleCatalogMedia, findInternalVehicleCatalog, listVehicleCatalogMedia, writeInternalAuditEvent } from "@/lib/server/internal-data";
 import { assertSameOriginRequest } from "@/lib/server/request-security";
 
 export const dynamic = "force-dynamic";
@@ -68,6 +68,17 @@ export async function POST(request: Request, context: RouteContext) {
       if (item) {
         media.push(item);
       }
+    }
+
+    if (media.length > 0) {
+      await writeInternalAuditEvent({
+        action: isCover ? "media_cover_upload" : "media_upload",
+        actor: user,
+        description: `Upload ${media.length} ảnh cho phương tiện ${catalogItem.label}.`,
+        entityId: catalogItem.vehicleCatalogId,
+        entityType: "vehicle_catalog",
+        request,
+      });
     }
 
     return internalJson({ media }, { status: 201 });

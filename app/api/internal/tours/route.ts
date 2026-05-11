@@ -1,6 +1,6 @@
 import { requireAdministrativeStaff } from "@/lib/server/internal-auth";
 import { internalErrorResponse, internalJson } from "@/lib/server/internal-api";
-import { createInternalTour, listInternalTours, listInternalToursPage } from "@/lib/server/internal-data";
+import { createInternalTour, listInternalTours, listInternalToursPage, writeInternalAuditEvent } from "@/lib/server/internal-data";
 import { assertSameOriginRequest } from "@/lib/server/request-security";
 import { tourMutationSchema, tourStatusSchema } from "@/lib/shared/internal";
 
@@ -39,6 +39,17 @@ export async function POST(request: Request) {
     const user = await requireAdministrativeStaff(request);
     const input = tourMutationSchema.parse(await request.json());
     const tour = await createInternalTour(input, user.userId);
+
+    if (tour) {
+      await writeInternalAuditEvent({
+        action: "create",
+        actor: user,
+        description: `Tạo tour ${tour.title}.`,
+        entityId: tour.tourId,
+        entityType: "tour",
+        request,
+      });
+    }
 
     return internalJson({ tour }, { status: 201 });
   } catch (error) {

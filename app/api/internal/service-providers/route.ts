@@ -1,6 +1,6 @@
 import { requireAdministrativeStaff } from "@/lib/server/internal-auth";
 import { internalErrorResponse, internalJson } from "@/lib/server/internal-api";
-import { createInternalServiceProvider, listInternalServiceProviders, listInternalServiceProvidersPage } from "@/lib/server/internal-data";
+import { createInternalServiceProvider, listInternalServiceProviders, listInternalServiceProvidersPage, writeInternalAuditEvent } from "@/lib/server/internal-data";
 import { assertSameOriginRequest } from "@/lib/server/request-security";
 import { serviceProviderMutationSchema, serviceProviderStatusSchema } from "@/lib/shared/internal";
 
@@ -47,13 +47,22 @@ export async function GET(request: Request) {
 export async function POST(request: Request) {
   try {
     assertSameOriginRequest(request);
-    await requireAdministrativeStaff(request);
+    const user = await requireAdministrativeStaff(request);
     const input = serviceProviderMutationSchema.parse(await request.json());
     const provider = await createInternalServiceProvider(input);
 
     if (!provider) {
       return internalJson({ message: "Không thể tạo nhà cung cấp." }, { status: 500 });
     }
+
+    await writeInternalAuditEvent({
+      action: "create",
+      actor: user,
+      description: `Tạo nhà cung cấp ${provider.providerName}.`,
+      entityId: provider.providerId,
+      entityType: "service_provider",
+      request,
+    });
 
     return internalJson({ provider }, { status: 201 });
   } catch (error) {

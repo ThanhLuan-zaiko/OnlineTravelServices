@@ -64,6 +64,7 @@ export function ImageDropzone({
   const fileName = Array.isArray(file)
     ? `${file.length} file đã chọn`
     : file?.name ?? "Chưa có file nào được chọn";
+  const hasFile = Array.isArray(file) ? file.length > 0 : Boolean(file);
 
   return (
     <div className="space-y-2">
@@ -111,7 +112,7 @@ export function ImageDropzone({
           </span>
           <span className="min-w-0 space-y-1">
             <span className="block text-sm font-semibold text-slate-950 dark:text-neutral-50">
-              {file ? fileName : "Kéo thả ảnh vào đây hoặc bấm để chọn file"}
+              {hasFile ? fileName : "Kéo thả ảnh vào đây hoặc bấm để chọn file"}
             </span>
             <span className="block text-sm text-slate-500 dark:text-neutral-400" id={`${id}-hint`}>
               {hint}

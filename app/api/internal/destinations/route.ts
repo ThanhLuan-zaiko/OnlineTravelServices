@@ -1,6 +1,6 @@
 import { requireAdministrativeStaff } from "@/lib/server/internal-auth";
 import { internalErrorResponse, internalJson } from "@/lib/server/internal-api";
-import { createInternalDestination, listInternalDestinations, listInternalDestinationsPage } from "@/lib/server/internal-data";
+import { createInternalDestination, listInternalDestinations, listInternalDestinationsPage, writeInternalAuditEvent } from "@/lib/server/internal-data";
 import { assertSameOriginRequest } from "@/lib/server/request-security";
 import { destinationStatusSchema, destinationMutationSchema } from "@/lib/shared/internal";
 
@@ -52,6 +52,15 @@ export async function POST(request: Request) {
     if (!destination) {
       return internalJson({ message: "Không tìm thấy địa điểm." }, { status: 404 });
     }
+
+    await writeInternalAuditEvent({
+      action: "create",
+      actor: user,
+      description: `Tạo địa điểm ${destination.name}.`,
+      entityId: destination.destinationId,
+      entityType: "destination",
+      request,
+    });
 
     return internalJson({ destination }, { status: 201 });
   } catch (error) {

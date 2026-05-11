@@ -3,6 +3,7 @@ import { internalErrorResponse, internalJson } from "@/lib/server/internal-api";
 import {
   clearInternalVehicleCatalogImage,
   setInternalVehicleCatalogImage,
+  writeInternalAuditEvent,
 } from "@/lib/server/internal-data";
 import { assertSameOriginRequest } from "@/lib/server/request-security";
 
@@ -37,6 +38,15 @@ export async function POST(request: Request, context: RouteContext) {
       return internalJson({ message: "Không tìm thấy phương tiện." }, { status: 404 });
     }
 
+    await writeInternalAuditEvent({
+      action: "image_upload",
+      actor: user,
+      description: `Upload ảnh chính cho phương tiện ${catalogItem.label}.`,
+      entityId: catalogItem.vehicleCatalogId,
+      entityType: "vehicle_catalog",
+      request,
+    });
+
     return internalJson({ catalogItem });
   } catch (error) {
     return internalErrorResponse(error, "Không thể tải ảnh phương tiện.", {
@@ -48,13 +58,22 @@ export async function POST(request: Request, context: RouteContext) {
 export async function DELETE(request: Request, context: RouteContext) {
   try {
     assertSameOriginRequest(request);
-    await requireAdministrativeStaff(request);
+    const user = await requireAdministrativeStaff(request);
     const { vehicleCatalogId } = await context.params;
     const catalogItem = await clearInternalVehicleCatalogImage(vehicleCatalogId);
 
     if (!catalogItem) {
       return internalJson({ message: "Không tìm thấy phương tiện." }, { status: 404 });
     }
+
+    await writeInternalAuditEvent({
+      action: "image_delete",
+      actor: user,
+      description: `Xóa ảnh chính khỏi phương tiện ${catalogItem.label}.`,
+      entityId: catalogItem.vehicleCatalogId,
+      entityType: "vehicle_catalog",
+      request,
+    });
 
     return internalJson({ catalogItem });
   } catch (error) {

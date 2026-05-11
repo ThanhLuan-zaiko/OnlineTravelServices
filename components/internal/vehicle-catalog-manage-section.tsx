@@ -47,6 +47,21 @@ export function VehicleManageSection({
 }) {
   const imageLabel = editingItem ? "Đổi ảnh khi lưu" : "Ảnh phương tiện";
   const [imagePreview, setImagePreview] = useState<VehicleImagePreviewState>(null);
+  const addFiles = (files: File[]) => {
+    if (files.length > 0) {
+      onSelectFiles([...selectedFiles, ...files]);
+    }
+  };
+  const removeFile = (index: number) => onSelectFiles(selectedFiles.filter((_, currentIndex) => currentIndex !== index));
+  const setDraftCover = (index: number) => {
+    const coverFile = selectedFiles[index];
+
+    if (!coverFile) {
+      return;
+    }
+
+    onSelectFiles([coverFile, ...selectedFiles.filter((_, currentIndex) => currentIndex !== index)]);
+  };
 
   return (
     <div className="grid gap-5 xl:grid-cols-[0.95fr_1.05fr]">
@@ -170,15 +185,33 @@ export function VehicleManageSection({
         </p>
         <div className="mt-4 space-y-4">
           {selectedFilePreviews.length > 0 ? (
-            <div className="grid gap-3 md:grid-cols-2">
-              {selectedFilePreviews.map((item) => (
-                <VehicleSelectedImagePreview
-                  fileName={item.file.name}
-                  key={`${item.file.name}-${item.previewUrl}`}
-                  previewUrl={item.previewUrl}
-                  onOpenPreview={() => setImagePreview({ alt: item.file.name, src: item.previewUrl })}
-                />
-              ))}
+            <div className="space-y-3">
+              <div className="flex flex-wrap items-center justify-between gap-3">
+                <p className="text-sm text-slate-500 dark:text-neutral-400">
+                  Ảnh nháp chỉ lưu trong trình duyệt cho đến khi bạn bấm lưu.
+                </p>
+                <button
+                  className="inline-flex h-9 items-center justify-center gap-2 rounded-lg border border-rose-200 px-3 text-xs font-semibold text-rose-700 transition hover:bg-rose-50 dark:border-rose-950 dark:text-rose-300 dark:hover:bg-rose-950/40"
+                  onClick={() => onSelectFiles([])}
+                  type="button"
+                >
+                  <FiTrash2 size={14} />
+                  Gỡ tất cả
+                </button>
+              </div>
+              <div className="grid gap-3 md:grid-cols-2">
+                {selectedFilePreviews.map((item, index) => (
+                  <VehicleSelectedImagePreview
+                    fileName={item.file.name}
+                    isCover={index === 0}
+                    key={`${item.file.name}-${item.previewUrl}`}
+                    previewUrl={item.previewUrl}
+                    onOpenPreview={() => setImagePreview({ alt: item.file.name, src: item.previewUrl })}
+                    onRemove={() => removeFile(index)}
+                    onSetCover={() => setDraftCover(index)}
+                  />
+                ))}
+              </div>
             </div>
           ) : null}
           {editingItem ? <VehicleImagePreview item={editingItem} /> : null}
@@ -196,8 +229,14 @@ export function VehicleManageSection({
             file={selectedFiles}
             label="Chọn file ảnh"
             multiple
-            onFileChange={onSelectFile}
-            onFilesChange={onSelectFiles}
+            onFileChange={(file) => {
+              if (file) {
+                addFiles([file]);
+              } else {
+                onSelectFile(null);
+              }
+            }}
+            onFilesChange={addFiles}
           />
         </div>
       </InternalPanel>

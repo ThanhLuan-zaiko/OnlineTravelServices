@@ -819,6 +819,22 @@ function ProviderImagePanel({
   selectedFiles: File[];
   uploadPending?: boolean;
 }) {
+  const addFiles = (files: File[]) => {
+    if (files.length > 0) {
+      onSelectFiles([...selectedFiles, ...files]);
+    }
+  };
+  const removeFile = (index: number) => onSelectFiles(selectedFiles.filter((_, currentIndex) => currentIndex !== index));
+  const setDraftCover = (index: number) => {
+    const coverFile = selectedFiles[index];
+
+    if (!coverFile) {
+      return;
+    }
+
+    onSelectFiles([coverFile, ...selectedFiles.filter((_, currentIndex) => currentIndex !== index)]);
+  };
+
   return (
     <InternalPanel className="p-4">
       <div className="flex items-center gap-2">
@@ -833,15 +849,57 @@ function ProviderImagePanel({
 
       <div className="mt-4 space-y-4">
         {selectedFilePreviews.length > 0 ? (
-          <div className="grid gap-3 md:grid-cols-2">
-            {selectedFilePreviews.map((item) => (
-              <div className="overflow-hidden rounded-2xl border border-slate-200 dark:border-neutral-800" key={`${item.file.name}-${item.previewUrl}`}>
-                <div className="relative aspect-video bg-slate-100 dark:bg-neutral-900">
-                  <Image alt={item.file.name} className="object-cover" fill sizes="(min-width: 768px) 22vw, 100vw" src={item.previewUrl} />
+          <div className="space-y-3">
+            <div className="flex flex-wrap items-center justify-between gap-3">
+              <p className="text-sm text-slate-500 dark:text-neutral-400">
+                Ảnh nháp chỉ lưu trong trình duyệt cho đến khi bạn bấm lưu hoặc upload.
+              </p>
+              <button
+                className="inline-flex h-9 items-center justify-center gap-2 rounded-lg border border-rose-200 px-3 text-xs font-semibold text-rose-700 transition hover:bg-rose-50 dark:border-rose-950 dark:text-rose-300 dark:hover:bg-rose-950/40"
+                onClick={() => onSelectFiles([])}
+                type="button"
+              >
+                <FiTrash2 size={14} />
+                Gỡ tất cả
+              </button>
+            </div>
+            <div className="grid gap-3 md:grid-cols-2">
+              {selectedFilePreviews.map((item, index) => (
+                <div className="overflow-hidden rounded-2xl border border-slate-200 dark:border-neutral-800" key={`${item.file.name}-${item.previewUrl}`}>
+                  <div className="relative aspect-video bg-slate-100 dark:bg-neutral-900">
+                    <Image alt={item.file.name} className="object-cover" fill sizes="(min-width: 768px) 22vw, 100vw" src={item.previewUrl} />
+                    {index === 0 ? (
+                      <span className="absolute left-2 top-2 inline-flex items-center gap-1 rounded-full bg-emerald-600 px-2 py-1 text-[11px] font-semibold text-white">
+                        <FiStar size={12} />
+                        Cover nháp
+                      </span>
+                    ) : null}
+                  </div>
+                  <div className="space-y-2 p-2">
+                    <p className="truncate text-xs font-semibold text-slate-600 dark:text-neutral-400">{item.file.name}</p>
+                    <div className="flex flex-wrap gap-2">
+                      <button
+                        className="inline-flex h-8 items-center gap-2 rounded-lg border border-slate-200 px-2 text-xs font-semibold transition hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-60 dark:border-neutral-800 dark:hover:bg-neutral-900"
+                        disabled={index === 0}
+                        onClick={() => setDraftCover(index)}
+                        type="button"
+                      >
+                        <FiStar size={13} />
+                        Đặt cover
+                      </button>
+                      <button
+                        className="inline-flex h-8 items-center gap-2 rounded-lg border border-rose-200 px-2 text-xs font-semibold text-rose-700 transition hover:bg-rose-50 dark:border-rose-950 dark:text-rose-300 dark:hover:bg-rose-950/40"
+                        onClick={() => removeFile(index)}
+                        type="button"
+                      >
+                        <FiTrash2 size={13} />
+                        Gỡ ảnh
+                      </button>
+                    </div>
+                  </div>
                 </div>
-                <p className="truncate p-2 text-xs font-semibold text-slate-600 dark:text-neutral-400">{item.file.name}</p>
-              </div>
-            ))}
+              ))}
+            </div>
           </div>
         ) : null}
 
@@ -852,8 +910,12 @@ function ProviderImagePanel({
           file={selectedFiles}
           label="Chọn ảnh nhà cung cấp"
           multiple
-          onFileChange={(file) => onSelectFiles(file ? [file] : [])}
-          onFilesChange={onSelectFiles}
+          onFileChange={(file) => {
+            if (file) {
+              addFiles([file]);
+            }
+          }}
+          onFilesChange={addFiles}
         />
 
         {onUpload ? (

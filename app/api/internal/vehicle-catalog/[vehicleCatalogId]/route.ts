@@ -8,6 +8,7 @@ import {
   findInternalVehicleCatalog,
   updateInternalVehicleCatalog,
   hardDeleteInternalVehicleCatalog,
+  writeInternalAuditEvent,
 } from "@/lib/server/internal-data";
 import { assertSameOriginRequest } from "@/lib/server/request-security";
 import { vehicleCatalogMutationSchema } from "@/lib/shared/internal";
@@ -61,7 +62,7 @@ export async function GET(request: Request, context: RouteContext) {
 export async function PATCH(request: Request, context: RouteContext) {
   try {
     assertSameOriginRequest(request);
-    await requireAdministrativeStaff(request);
+    const user = await requireAdministrativeStaff(request);
     const { vehicleCatalogId } = await context.params;
     const input = vehicleCatalogMutationSchema.parse(await request.json());
     const catalogItem = await updateInternalVehicleCatalog(vehicleCatalogId, input);
@@ -69,6 +70,15 @@ export async function PATCH(request: Request, context: RouteContext) {
     if (!catalogItem) {
       return internalJson({ message: "Không tìm thấy phương tiện." }, { status: 404 });
     }
+
+    await writeInternalAuditEvent({
+      action: "update",
+      actor: user,
+      description: `Cập nhật phương tiện ${catalogItem.label}.`,
+      entityId: catalogItem.vehicleCatalogId,
+      entityType: "vehicle_catalog",
+      request,
+    });
 
     return internalJson({ catalogItem });
   } catch (error) {
@@ -81,7 +91,7 @@ export async function PATCH(request: Request, context: RouteContext) {
 export async function DELETE(request: Request, context: RouteContext) {
   try {
     assertSameOriginRequest(request);
-    await requireAdministrativeStaff(request);
+    const user = await requireAdministrativeStaff(request);
     const { vehicleCatalogId } = await context.params;
     const { searchParams } = new URL(request.url);
 
@@ -99,6 +109,15 @@ export async function DELETE(request: Request, context: RouteContext) {
       ]);
       await removeVehicleCatalogFolder(vehicleCatalogId);
 
+      await writeInternalAuditEvent({
+        action: "hard_delete",
+        actor: user,
+        description: `Xóa vĩnh viễn phương tiện ${deleted.catalogItem.label}.`,
+        entityId: deleted.catalogItem.vehicleCatalogId,
+        entityType: "vehicle_catalog",
+        request,
+      });
+
       return internalJson({
         catalogItem: deleted.catalogItem,
         message: "Phương tiện đã bị xóa vĩnh viễn.",
@@ -110,6 +129,15 @@ export async function DELETE(request: Request, context: RouteContext) {
     if (!catalogItem) {
       return internalJson({ message: "Không tìm thấy phương tiện." }, { status: 404 });
     }
+
+    await writeInternalAuditEvent({
+      action: "archive",
+      actor: user,
+      description: `Lưu trữ phương tiện ${catalogItem.label}.`,
+      entityId: catalogItem.vehicleCatalogId,
+      entityType: "vehicle_catalog",
+      request,
+    });
 
     return internalJson({ catalogItem });
   } catch (error) {
