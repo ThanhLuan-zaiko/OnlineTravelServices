@@ -4,6 +4,7 @@ import path from "node:path";
 import { requireAdministrativeStaff } from "@/lib/server/internal-auth";
 import { internalErrorResponse, internalJson } from "@/lib/server/internal-api";
 import { deleteTourMedia, findInternalTour, findTourMedia, writeInternalAuditEvent } from "@/lib/server/internal-data";
+import { syncPublicTourProjection } from "@/lib/server/public-tours";
 import { assertSameOriginRequest } from "@/lib/server/request-security";
 
 export const dynamic = "force-dynamic";
@@ -59,6 +60,7 @@ export async function DELETE(request: Request, context: RouteContext) {
       entityType: "tour",
       request,
     });
+    await syncPublicTourProjection(tour.tourId);
 
     return internalJson({ media: deleted });
   } catch (error) {

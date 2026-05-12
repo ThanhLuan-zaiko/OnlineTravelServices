@@ -3,6 +3,7 @@ import { z } from "zod";
 import { requireAdministrativeStaff } from "@/lib/server/internal-auth";
 import { internalErrorResponse, internalJson } from "@/lib/server/internal-api";
 import { deleteSchedule, updateSchedule } from "@/lib/server/internal-data";
+import { syncPublicTourProjection } from "@/lib/server/public-tours";
 import { assertSameOriginRequest } from "@/lib/server/request-security";
 import { scheduleMutationSchema } from "@/lib/shared/internal";
 
@@ -25,6 +26,7 @@ export async function PATCH(request: Request, context: RouteContext) {
     const { scheduleId, tourId } = await context.params;
     const input = scheduleMutationSchema.parse(await request.json());
     const schedule = await updateSchedule(tourId, scheduleId, input);
+    await syncPublicTourProjection(tourId);
 
     return internalJson({ schedule });
   } catch (error) {
@@ -43,6 +45,7 @@ export async function DELETE(request: Request, context: RouteContext) {
     const departureDate = departureDateSchema.parse(searchParams.get("departureDate"));
 
     await deleteSchedule(tourId, scheduleId, departureDate);
+    await syncPublicTourProjection(tourId);
 
     return internalJson({ message: "Đã xóa lịch khởi hành." });
   } catch (error) {

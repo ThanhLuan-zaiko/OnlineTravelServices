@@ -1,6 +1,7 @@
 import { requireAdministrativeStaff } from "@/lib/server/internal-auth";
 import { internalErrorResponse, internalJson } from "@/lib/server/internal-api";
 import { createSchedule, listSchedulesByTour } from "@/lib/server/internal-data";
+import { syncPublicTourProjection } from "@/lib/server/public-tours";
 import { assertSameOriginRequest } from "@/lib/server/request-security";
 import { scheduleMutationSchema } from "@/lib/shared/internal";
 
@@ -34,6 +35,7 @@ export async function POST(request: Request, context: RouteContext) {
     const { tourId } = await context.params;
     const input = scheduleMutationSchema.parse(await request.json());
     const schedule = await createSchedule(tourId, input);
+    await syncPublicTourProjection(tourId);
 
     return internalJson({ schedule }, { status: 201 });
   } catch (error) {

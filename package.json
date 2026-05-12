@@ -4,8 +4,12 @@
   "private": true,
   "scripts": {
     "dev": "next dev",
+    "dev:realtime-ws": "bun run scripts/realtime-ws-server.ts",
+    "dev:tour-ws": "bun run scripts/public-tour-ws-server.ts",
     "build": "next build",
     "start": "next start",
+    "start:realtime-ws": "bun run scripts/realtime-ws-server.ts",
+    "start:tour-ws": "bun run scripts/public-tour-ws-server.ts",
     "lint": "eslint",
     "seed:administrative-staff": "bun run scripts/seed-administrative-staff.ts"
   },

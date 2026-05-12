@@ -4,6 +4,7 @@ import path from "node:path";
 import { requireAdministrativeStaff } from "@/lib/server/internal-auth";
 import { internalErrorResponse, internalJson } from "@/lib/server/internal-api";
 import { archiveInternalDestination, findInternalDestination, hardDeleteInternalDestination, updateInternalDestination, writeInternalAuditEvent } from "@/lib/server/internal-data";
+import { syncPublicToursForDestination } from "@/lib/server/public-tours";
 import { assertSameOriginRequest } from "@/lib/server/request-security";
 import { destinationMutationSchema } from "@/lib/shared/internal";
 
@@ -69,6 +70,7 @@ export async function PATCH(request: Request, context: RouteContext) {
       entityType: "destination",
       request,
     });
+    await syncPublicToursForDestination(destination.destinationId);
 
     return internalJson({ destination });
   } catch (error) {
@@ -108,6 +110,7 @@ export async function DELETE(request: Request, context: RouteContext) {
         entityType: "destination",
         request,
       });
+      await syncPublicToursForDestination(destinationId);
 
       return internalJson({
         destination: deleted.destination,
@@ -129,6 +132,7 @@ export async function DELETE(request: Request, context: RouteContext) {
       entityType: "destination",
       request,
     });
+    await syncPublicToursForDestination(destination.destinationId);
 
     return internalJson({ destination });
   } catch (error) {

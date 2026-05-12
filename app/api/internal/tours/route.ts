@@ -1,6 +1,7 @@
 import { requireAdministrativeStaff } from "@/lib/server/internal-auth";
 import { internalErrorResponse, internalJson } from "@/lib/server/internal-api";
 import { createInternalTour, listInternalTours, listInternalToursPage, writeInternalAuditEvent } from "@/lib/server/internal-data";
+import { syncPublicTourProjection } from "@/lib/server/public-tours";
 import { assertSameOriginRequest } from "@/lib/server/request-security";
 import { tourMutationSchema, tourStatusSchema } from "@/lib/shared/internal";
 
@@ -49,6 +50,7 @@ export async function POST(request: Request) {
         entityType: "tour",
         request,
       });
+      await syncPublicTourProjection(tour.tourId);
     }
 
     return internalJson({ tour }, { status: 201 });

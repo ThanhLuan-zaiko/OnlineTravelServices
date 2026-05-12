@@ -3,6 +3,7 @@ import { z } from "zod";
 import { requireAdministrativeStaff } from "@/lib/server/internal-auth";
 import { internalErrorResponse, internalJson } from "@/lib/server/internal-api";
 import { deleteItineraryItem, upsertItineraryItem } from "@/lib/server/internal-data";
+import { syncPublicTourProjection } from "@/lib/server/public-tours";
 import { assertSameOriginRequest } from "@/lib/server/request-security";
 import { itineraryMutationSchema } from "@/lib/shared/internal";
 
@@ -26,6 +27,7 @@ export async function PATCH(request: Request, context: RouteContext) {
     const { tourId } = await context.params;
     const input = itineraryMutationSchema.parse(await request.json());
     const item = await upsertItineraryItem(tourId, input);
+    await syncPublicTourProjection(tourId);
 
     return internalJson({ item });
   } catch (error) {
@@ -46,6 +48,7 @@ export async function DELETE(request: Request, context: RouteContext) {
       positiveIntegerSchema.parse(dayNumber),
       positiveIntegerSchema.parse(itemOrder),
     );
+    await syncPublicTourProjection(tourId);
 
     return internalJson({ message: "Đã xóa mục lịch trình." });
   } catch (error) {

@@ -4,6 +4,7 @@ import path from "node:path";
 import { requireAdministrativeStaff } from "@/lib/server/internal-auth";
 import { internalErrorResponse, internalJson } from "@/lib/server/internal-api";
 import { archiveInternalTour, findInternalTour, hardDeleteInternalTour, updateInternalTour, writeInternalAuditEvent } from "@/lib/server/internal-data";
+import { syncPublicTourProjection } from "@/lib/server/public-tours";
 import { assertSameOriginRequest } from "@/lib/server/request-security";
 import { tourMutationSchema } from "@/lib/shared/internal";
 
@@ -64,6 +65,7 @@ export async function PATCH(request: Request, context: RouteContext) {
       entityType: "tour",
       request,
     });
+    await syncPublicTourProjection(tour.tourId);
 
     return internalJson({ tour });
   } catch (error) {
@@ -99,6 +101,7 @@ export async function DELETE(request: Request, context: RouteContext) {
         entityType: "tour",
         request,
       });
+      await syncPublicTourProjection(tourId);
 
       return internalJson({ message: "Tour đã bị xóa vĩnh viễn.", tour: deleted.tour });
     }
@@ -117,6 +120,7 @@ export async function DELETE(request: Request, context: RouteContext) {
       entityType: "tour",
       request,
     });
+    await syncPublicTourProjection(tour.tourId);
 
     return internalJson({ tour });
   } catch (error) {

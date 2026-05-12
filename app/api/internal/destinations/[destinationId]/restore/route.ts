@@ -1,6 +1,7 @@
 import { requireAdministrativeStaff } from "@/lib/server/internal-auth";
 import { internalErrorResponse, internalJson } from "@/lib/server/internal-api";
 import { findInternalDestination, restoreInternalDestination, writeInternalAuditEvent } from "@/lib/server/internal-data";
+import { syncPublicToursForDestination } from "@/lib/server/public-tours";
 import { assertSameOriginRequest } from "@/lib/server/request-security";
 
 export const dynamic = "force-dynamic";
@@ -37,6 +38,7 @@ export async function PATCH(request: Request, context: RouteContext) {
       entityType: "destination",
       request,
     });
+    await syncPublicToursForDestination(restored.destinationId);
 
     return internalJson({ destination: restored });
   } catch (error) {

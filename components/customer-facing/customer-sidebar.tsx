@@ -1,5 +1,8 @@
 "use client";
 
+import Link from "next/link";
+import { usePathname } from "next/navigation";
+
 import type { SidebarPreference } from "./customer-portal-shell";
 
 import { sidebarItems } from "./navigation-data";
@@ -13,6 +16,7 @@ export function CustomerSidebar({
   onClose,
   sidebarPreference,
 }: CustomerSidebarProps) {
+  const pathname = usePathname();
   const isExplicitlyOpen = sidebarPreference === "open";
   const panelClassName =
     sidebarPreference === "open"
@@ -49,12 +53,18 @@ export function CustomerSidebar({
             <nav className="flex flex-col gap-2" aria-label="Danh mục chính">
               {sidebarItems.map((item) => {
                 const Icon = item.icon;
+                const active = pathname === item.href;
 
                 return (
-                  <button
-                    className="group flex w-full items-start gap-3 rounded-2xl border border-transparent p-3 text-left transition hover:border-slate-200 hover:bg-slate-50 dark:hover:border-neutral-800 dark:hover:bg-neutral-900"
+                  <Link
+                    className={`group flex w-full items-start gap-3 rounded-lg border p-3 text-left transition ${
+                      active
+                        ? "border-sky-200 bg-sky-50 dark:border-sky-900 dark:bg-neutral-900"
+                        : "border-transparent hover:border-slate-200 hover:bg-slate-50 dark:hover:border-neutral-800 dark:hover:bg-neutral-900"
+                    }`}
+                    href={item.href}
                     key={item.label}
-                    type="button"
+                    onClick={onClose}
                   >
                     <span
                       className={`mt-0.5 flex h-10 w-10 shrink-0 items-center justify-center rounded-xl shadow-sm ring-1 transition ${item.tone}`}
@@ -69,7 +79,7 @@ export function CustomerSidebar({
                         {item.description}
                       </span>
                     </span>
-                  </button>
+                  </Link>
                 );
               })}
             </nav>

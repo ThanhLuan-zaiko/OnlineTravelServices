@@ -500,6 +500,96 @@ CREATE TABLE IF NOT EXISTS tours_by_category (
   PRIMARY KEY ((category), status, base_price, tour_id)
 );
 
+CREATE TABLE IF NOT EXISTS public_tours_by_feed (
+  feed text,
+  published_at timestamp,
+  tour_id uuid,
+  slug text,
+  title text,
+  summary text,
+  destination_id uuid,
+  destination_name text,
+  country text,
+  region text,
+  city text,
+  address text,
+  latitude decimal,
+  longitude decimal,
+  category text,
+  tour_type text,
+  base_price decimal,
+  currency text,
+  duration_days int,
+  duration_nights int,
+  min_guests int,
+  max_guests int,
+  average_rating decimal,
+  rating_count int,
+  vip_only boolean,
+  cover_image_url text,
+  next_departure_date date,
+  next_departure_time text,
+  next_departure_price decimal,
+  next_departure_currency text,
+  next_available_slots int,
+  updated_at timestamp,
+  PRIMARY KEY ((feed), published_at, tour_id)
+) WITH CLUSTERING ORDER BY (published_at DESC, tour_id ASC);
+
+CREATE TABLE IF NOT EXISTS public_tours_by_country (
+  feed text,
+  country_key text,
+  published_at timestamp,
+  tour_id uuid,
+  slug text,
+  title text,
+  summary text,
+  destination_id uuid,
+  destination_name text,
+  country text,
+  region text,
+  city text,
+  address text,
+  latitude decimal,
+  longitude decimal,
+  category text,
+  tour_type text,
+  base_price decimal,
+  currency text,
+  duration_days int,
+  duration_nights int,
+  min_guests int,
+  max_guests int,
+  average_rating decimal,
+  rating_count int,
+  vip_only boolean,
+  cover_image_url text,
+  next_departure_date date,
+  next_departure_time text,
+  next_departure_price decimal,
+  next_departure_currency text,
+  next_available_slots int,
+  updated_at timestamp,
+  PRIMARY KEY ((feed, country_key), published_at, tour_id)
+) WITH CLUSTERING ORDER BY (published_at DESC, tour_id ASC);
+
+CREATE TABLE IF NOT EXISTS public_tour_countries_by_feed (
+  feed text,
+  country_key text,
+  country text,
+  updated_at timestamp,
+  PRIMARY KEY ((feed), country_key)
+);
+
+CREATE TABLE IF NOT EXISTS public_tour_projection_keys_by_tour (
+  tour_id uuid,
+  feed text,
+  published_at timestamp,
+  country_key text,
+  country text,
+  PRIMARY KEY ((tour_id), feed)
+);
+
 CREATE TABLE IF NOT EXISTS tour_schedules_by_tour (
   tour_id uuid,
   departure_date date,

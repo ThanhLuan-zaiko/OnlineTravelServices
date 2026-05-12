@@ -5,9 +5,12 @@
 ## ⬢ Bức Tranh Tổng Quan
 
 - ◇ **Customer-facing portal**: đăng ký, đăng nhập, hồ sơ tài khoản và giao diện light/dark responsive.
-- ◇ **Internal portal**: quản lý tour, doanh thu tour, lịch khởi hành, lịch trình và khuyến mãi cho `AdministrativeStaff`.
+- ◇ **Public tour landing pages**: trang chủ, tour trong nước, tour nước ngoài, sự kiện, chi tiết tour, Google Map, tìm kiếm, cuộn vô tận và tab quốc gia cho tour nước ngoài.
+- ◇ **Customer workflows**: đánh giá tour cần đăng nhập, lịch sử đặt tour và lịch sử thanh toán có tìm kiếm + phân trang rõ ràng.
+- ◇ **Internal portal**: quản lý tour, doanh thu tour, lịch khởi hành, lịch trình, khuyến mãi và đồng bộ tour public cho `AdministrativeStaff`.
 - ◇ **Auth phân quyền**: session cookie dùng chung, guard riêng cho customer và staff.
 - ◇ **ScyllaDB query-oriented schema**: dữ liệu được lưu theo các bảng lookup/projection trong `schema.cql`.
+- ◇ **Reusable realtime WebSocket**: Bun WebSocket server dùng channel để tái sử dụng cho nhiều tính năng; public tour hiện dùng channel `public-tours`.
 - ◇ **Seed role an toàn**: tài khoản staff đầu tiên được tạo từ `.env.local`, không hardcode secret vào GitHub.
 
 ## ✧ Tech Stack
@@ -43,6 +46,11 @@ ADMINISTRATIVE_STAFF_EMAIL=staff@example.com
 ADMINISTRATIVE_STAFF_PASSWORD=replace-with-a-strong-password
 ADMINISTRATIVE_STAFF_FULL_NAME=Administrative Staff
 ADMINISTRATIVE_STAFF_PHONE=0900000000
+
+REALTIME_WS_PORT=3002
+REALTIME_WS_PUBLISH_URL=http://127.0.0.1:3002/publish
+NEXT_PUBLIC_REALTIME_WS_URL=ws://localhost:3002/realtime-updates
+REALTIME_EVENTS_SECRET=
 ```
 
 Khởi tạo database local:
@@ -63,10 +71,18 @@ Chạy ứng dụng:
 bun run dev
 ```
 
+Chạy realtime WebSocket server trong terminal riêng nếu muốn nhận cập nhật tour mới realtime:
+
+```powershell
+bun run dev:realtime-ws
+```
+
 Mở trình duyệt:
 
 - ⟡ Customer portal: `http://localhost:3000`
 - ⟡ Internal access: `http://localhost:3000/internal/login`
+- ⟡ Domestic tours: `http://localhost:3000/tours/domestic`
+- ⟡ International tours: `http://localhost:3000/tours/international`
 
 ## ⟡ Seed Role AdministrativeStaff
 
@@ -97,6 +113,7 @@ Các route chính:
 - `/internal`
 - `/internal/tours`
 - `/internal/tours/[tourId]`
+- `/internal/tours/media`
 - `/internal/schedules`
 - `/internal/promotions`
 - `/internal/revenue`
@@ -105,6 +122,7 @@ Các route chính:
 
 ```powershell
 bun run dev
+bun run dev:realtime-ws
 bun run build
 bun run lint
 bun run seed:administrative-staff
@@ -115,6 +133,7 @@ bun run seed:administrative-staff
 
 - [Hướng dẫn setup local](docs/setup-local.md)
 - [Cổng nội bộ và seed role](docs/internal-portal.md)
+- [Customer portal, tour public và lịch sử](docs/customer-portal.md)
 - [Ghi chú database ScyllaDB](docs/database.md)
 
 ## ◈ Ghi Chú Phát Triển

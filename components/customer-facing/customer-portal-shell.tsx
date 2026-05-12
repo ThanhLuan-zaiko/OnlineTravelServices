@@ -2,6 +2,8 @@
 
 import { useState } from "react";
 
+import type { PublicTourFeed } from "@/lib/shared/public-tours";
+
 import { CustomerHeader } from "./customer-header";
 import { CustomerMainContent } from "./customer-main-content";
 import { CustomerRightSidebar } from "./customer-right-sidebar";
@@ -15,6 +17,7 @@ const DESKTOP_MEDIA_QUERY = "(min-width: 1024px)";
 export type SidebarPreference = "auto" | "open" | "closed";
 
 type CustomerPortalShellProps = {
+  feed?: PublicTourFeed;
   initialLeftSidebar: SidebarPreference;
   initialRightSidebar: SidebarPreference;
 };
@@ -36,6 +39,7 @@ function toggleSidebarPreference(current: SidebarPreference) {
 }
 
 export function CustomerPortalShell({
+  feed = "all",
   initialLeftSidebar,
   initialRightSidebar,
 }: CustomerPortalShellProps) {
@@ -91,7 +95,7 @@ export function CustomerPortalShell({
           onClose={handleCloseLeftSidebar}
           sidebarPreference={leftSidebar}
         />
-        <CustomerMainContent />
+        <CustomerMainContent feed={feed} />
         <CustomerRightSidebar
           onClose={handleCloseRightSidebar}
           sidebarPreference={rightSidebar}

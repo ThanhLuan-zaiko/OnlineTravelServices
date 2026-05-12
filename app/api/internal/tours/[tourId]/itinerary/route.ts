@@ -1,6 +1,7 @@
 import { requireAdministrativeStaff } from "@/lib/server/internal-auth";
 import { internalErrorResponse, internalJson } from "@/lib/server/internal-api";
 import { listItineraryByTour, upsertItineraryItem } from "@/lib/server/internal-data";
+import { syncPublicTourProjection } from "@/lib/server/public-tours";
 import { assertSameOriginRequest } from "@/lib/server/request-security";
 import { itineraryMutationSchema } from "@/lib/shared/internal";
 
@@ -34,6 +35,7 @@ export async function POST(request: Request, context: RouteContext) {
     const { tourId } = await context.params;
     const input = itineraryMutationSchema.parse(await request.json());
     const item = await upsertItineraryItem(tourId, input);
+    await syncPublicTourProjection(tourId);
 
     return internalJson({ item }, { status: 201 });
   } catch (error) {

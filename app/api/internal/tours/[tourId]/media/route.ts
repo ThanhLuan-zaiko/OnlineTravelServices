@@ -2,6 +2,7 @@ import { requireAdministrativeStaff } from "@/lib/server/internal-auth";
 import { internalErrorResponse, internalJson } from "@/lib/server/internal-api";
 import { addTourMedia, findInternalTour, listTourMedia, writeInternalAuditEvent } from "@/lib/server/internal-data";
 import { storeImageAsset } from "@/lib/server/media-storage";
+import { syncPublicTourProjection } from "@/lib/server/public-tours";
 import { assertSameOriginRequest } from "@/lib/server/request-security";
 
 export const dynamic = "force-dynamic";
@@ -77,6 +78,7 @@ export async function POST(request: Request, context: RouteContext) {
         entityType: "tour",
         request,
       });
+      await syncPublicTourProjection(tour.tourId);
     }
 
     return internalJson({ media }, { status: 201 });
