@@ -385,6 +385,58 @@ export const operationReportMutationSchema = z.object({
   title: z.string().trim().min(3, "Vui lòng nhập tiêu đề báo cáo."),
 });
 
+export const adminStaffRoleSchema = z.enum(["administrative_staff", "operations_statistics_staff"]);
+export const adminStaffStatusSchema = z.enum(["active", "inactive", "suspended"]);
+export const adminStaffCreateSchema = z.object({
+  department: z.string().trim().min(2, "Vui lòng nhập phòng ban.").default("Administration"),
+  email: z.string().trim().email("Email không hợp lệ.").toLowerCase(),
+  fullName: z.string().trim().min(2, "Vui lòng nhập họ tên."),
+  password: internalPasswordSchema,
+  permissions: z.array(z.string().trim().min(2)).default([]),
+  phone: z.string().trim().min(8, "Vui lòng nhập số điện thoại."),
+  role: adminStaffRoleSchema,
+  staffLevel: z.string().trim().min(2, "Vui lòng nhập cấp nhân sự.").default("standard"),
+});
+export const adminStaffUpdateSchema = z.object({
+  department: z.string().trim().min(2, "Vui lòng nhập phòng ban."),
+  fullName: z.string().trim().min(2, "Vui lòng nhập họ tên."),
+  permissions: z.array(z.string().trim().min(2)).default([]),
+  role: adminStaffRoleSchema,
+  staffLevel: z.string().trim().min(2, "Vui lòng nhập cấp nhân sự."),
+  status: adminStaffStatusSchema,
+});
+export const adminStaffHardDeleteSchema = z.object({
+  confirm: z.literal("DELETE_STAFF"),
+});
+export const adminSystemTaskStatusSchema = z.enum(["cancelled", "completed", "failed", "pending", "running"]);
+export const adminSystemTaskTypeSchema = z.enum(["backup", "maintenance", "restore", "system_update"]);
+export const adminSystemTaskMutationSchema = z.object({
+  assignedTo: z.string().trim().uuid("Staff ID không hợp lệ.").nullable().optional(),
+  dueAt: timestampSchema.nullable().optional(),
+  priority: z.enum(["high", "low", "medium", "urgent"]).default("medium"),
+  taskType: adminSystemTaskTypeSchema,
+  title: z.string().trim().min(3, "Vui lòng nhập tiêu đề task."),
+});
+export const adminSystemTaskStatusMutationSchema = z.object({
+  completedAt: timestampSchema.nullable().optional(),
+  createdAt: z.string().trim().min(1, "Thiếu thời điểm tạo task."),
+  currentStatus: adminSystemTaskStatusSchema,
+  status: adminSystemTaskStatusSchema,
+});
+export const adminBackupModeSchema = z.enum(["cql_dump", "snapshot"]);
+export const adminBackupMutationSchema = z.object({
+  backupType: adminBackupModeSchema,
+});
+export const adminRestoreMutationSchema = z.object({
+  backupDay: dateSchema,
+  backupId: z.string().trim().uuid("Backup ID không hợp lệ."),
+  backupTime: z.string().trim().min(1, "Thiếu thời điểm backup."),
+  confirm: z.literal("RESTORE_DATABASE"),
+});
+export const adminMaintenanceMutationSchema = z.object({
+  command: z.enum(["cleanup", "compact", "repair"]),
+});
+
 export type InternalLoginRequest = z.infer<typeof internalLoginRequestSchema>;
 export type InternalAccountProfileRequest = z.infer<typeof internalAccountProfileRequestSchema>;
 export type TourMutationRequest = z.infer<typeof tourMutationSchema>;
@@ -407,6 +459,19 @@ export type OperationScheduleAdjustmentRequest = z.infer<typeof operationSchedul
 export type OperationCustomerNotificationRequest = z.infer<typeof operationCustomerNotificationSchema>;
 export type OperationTrendSnapshotMutationRequest = z.infer<typeof operationTrendSnapshotMutationSchema>;
 export type OperationReportMutationRequest = z.infer<typeof operationReportMutationSchema>;
+export type AdminStaffRole = z.infer<typeof adminStaffRoleSchema>;
+export type AdminStaffStatus = z.infer<typeof adminStaffStatusSchema>;
+export type AdminStaffCreateRequest = z.infer<typeof adminStaffCreateSchema>;
+export type AdminStaffUpdateRequest = z.infer<typeof adminStaffUpdateSchema>;
+export type AdminStaffHardDeleteRequest = z.infer<typeof adminStaffHardDeleteSchema>;
+export type AdminSystemTaskStatus = z.infer<typeof adminSystemTaskStatusSchema>;
+export type AdminSystemTaskType = z.infer<typeof adminSystemTaskTypeSchema>;
+export type AdminSystemTaskMutationRequest = z.infer<typeof adminSystemTaskMutationSchema>;
+export type AdminSystemTaskStatusMutationRequest = z.infer<typeof adminSystemTaskStatusMutationSchema>;
+export type AdminBackupMode = z.infer<typeof adminBackupModeSchema>;
+export type AdminBackupMutationRequest = z.infer<typeof adminBackupMutationSchema>;
+export type AdminRestoreMutationRequest = z.infer<typeof adminRestoreMutationSchema>;
+export type AdminMaintenanceMutationRequest = z.infer<typeof adminMaintenanceMutationSchema>;
 
 export type InternalTour = TourMutationRequest & {
   approvedBy: string | null;
@@ -768,4 +833,43 @@ export type InternalAccountProfile = {
 
 export type InternalAccountProfileResponse = {
   profile: InternalAccountProfile;
+};
+
+export type AdminStaffAccount = {
+  department: string;
+  email: string;
+  fullName: string;
+  hiredAt: string;
+  lastActivityAt: string | null;
+  permissions: string[];
+  phone: string;
+  role: AdminStaffRole;
+  staffId: string;
+  staffLevel: string;
+  status: AdminStaffStatus;
+  userId: string;
+};
+
+export type AdminSystemTask = {
+  assignedTo: string | null;
+  completedAt: string | null;
+  createdAt: string;
+  dueAt: string | null;
+  priority: "high" | "low" | "medium" | "urgent";
+  status: AdminSystemTaskStatus;
+  taskId: string;
+  taskType: AdminSystemTaskType;
+  title: string;
+};
+
+export type AdminSystemBackup = {
+  backupDay: string;
+  backupId: string;
+  backupTime: string;
+  backupType: AdminBackupMode;
+  finishedAt: string | null;
+  sizeBytes: number;
+  startedBy: string;
+  status: "completed" | "failed" | "running";
+  storageUri: string;
 };

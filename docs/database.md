@@ -92,6 +92,18 @@ Role `operations_statistics_staff` dùng các bảng query-oriented riêng cho n
 
 Các mutation Operations ghi audit log qua `audit_log_by_actor` và `audit_log_by_entity`.
 
+## ✧ Staff Permission Boundary
+
+Staff được lưu trong `users_by_*` để đăng nhập và `staff_by_*` để lấy hồ sơ quyền.
+
+- `seed:administrative-staff` tạo role `administrative_staff`, `staff_level = standard`, chỉ có quyền nghiệp vụ administrative.
+- `seed:operations-statistics-staff` tạo role `operations_statistics_staff`, `staff_level = standard`, có quyền `operations:access` và các quyền vận hành/thống kê.
+- `seed:admin-super-staff` tạo role `administrative_staff`, `staff_level = super_admin`, có union quyền administrative + operations và hai quyền cấp hệ thống `staff:manage`, `system:manage`.
+
+Guard của `/internal/admin` và `/api/internal/admin/*` không chỉ kiểm tra role. Hệ thống phải tìm hồ sơ trong `staff_by_role` + `staff_by_id`, sau đó xác nhận `staff_level = super_admin` và có quyền `staff:manage`, `system:manage`.
+
+Không ghi `staff:manage` hoặc `system:manage` cho staff thường trong seed, UI, migration hoặc script sửa dữ liệu. Đây là ranh giới bảo mật để staff thường không có chức năng hệ thống tương tự Admin tổng.
+
 ## ⟡ Public Tour Projection
 
 Public tour feed phục vụ các trang không cần đăng nhập:

@@ -1,5 +1,6 @@
 import { getAuthCookieValue, getCurrentInternalStaff } from "@/lib/server/auth";
 import { internalJson } from "@/lib/server/internal-api";
+import { getStaffAccessDetails } from "@/lib/server/internal-staff-access";
 
 export const dynamic = "force-dynamic";
 export const runtime = "nodejs";
@@ -11,5 +12,9 @@ export async function GET(request: Request) {
     return internalJson({ user: null }, { status: 401 });
   }
 
-  return internalJson({ user });
+  try {
+    return internalJson({ user: await getStaffAccessDetails(user) });
+  } catch {
+    return internalJson({ user: null }, { status: 401 });
+  }
 }

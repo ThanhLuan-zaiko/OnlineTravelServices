@@ -1,4 +1,4 @@
-import { requireOperationsStatisticsStaff } from "@/lib/server/internal-auth";
+import { requireOperationsAccess } from "@/lib/server/internal-auth";
 import { internalErrorResponse, internalJson } from "@/lib/server/internal-api";
 import { updateTourOperationStatus, writeInternalAuditEvent } from "@/lib/server/internal-data";
 import { assertSameOriginRequest } from "@/lib/server/request-security";
@@ -16,7 +16,7 @@ type RouteContext = {
 export async function PATCH(request: Request, context: RouteContext) {
   try {
     assertSameOriginRequest(request);
-    const user = await requireOperationsStatisticsStaff(request);
+    const user = await requireOperationsAccess(request);
     const { tourId } = await context.params;
     const payload = operationTourStatusMutationSchema.parse(await request.json());
     const event = await updateTourOperationStatus({ actorUserId: user.userId, payload, tourId });

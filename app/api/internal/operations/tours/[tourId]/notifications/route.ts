@@ -1,4 +1,4 @@
-import { requireOperationsStatisticsStaff } from "@/lib/server/internal-auth";
+import { requireOperationsAccess } from "@/lib/server/internal-auth";
 import { internalErrorResponse, internalJson } from "@/lib/server/internal-api";
 import {
   listOperationNotificationsByTour,
@@ -19,7 +19,7 @@ type RouteContext = {
 
 export async function GET(request: Request, context: RouteContext) {
   try {
-    await requireOperationsStatisticsStaff(request);
+    await requireOperationsAccess(request);
     const { tourId } = await context.params;
     const notifications = await listOperationNotificationsByTour(tourId);
 
@@ -34,7 +34,7 @@ export async function GET(request: Request, context: RouteContext) {
 export async function POST(request: Request, context: RouteContext) {
   try {
     assertSameOriginRequest(request);
-    const user = await requireOperationsStatisticsStaff(request);
+    const user = await requireOperationsAccess(request);
     const { tourId } = await context.params;
     const payload = operationCustomerNotificationSchema.parse(await request.json());
     const notification = await sendOperationCustomerNotification({

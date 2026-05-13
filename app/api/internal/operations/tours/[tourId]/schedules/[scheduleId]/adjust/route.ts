@@ -1,4 +1,4 @@
-import { requireOperationsStatisticsStaff } from "@/lib/server/internal-auth";
+import { requireOperationsAccess } from "@/lib/server/internal-auth";
 import { internalErrorResponse, internalJson } from "@/lib/server/internal-api";
 import { adjustOperationSchedule, writeInternalAuditEvent } from "@/lib/server/internal-data";
 import { syncPublicTourProjection } from "@/lib/server/public-tours";
@@ -18,7 +18,7 @@ type RouteContext = {
 export async function PATCH(request: Request, context: RouteContext) {
   try {
     assertSameOriginRequest(request);
-    const user = await requireOperationsStatisticsStaff(request);
+    const user = await requireOperationsAccess(request);
     const { scheduleId, tourId } = await context.params;
     const payload = operationScheduleAdjustmentSchema.parse(await request.json());
     const schedule = await adjustOperationSchedule({ payload, scheduleId, tourId });

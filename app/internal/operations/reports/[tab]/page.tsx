@@ -3,7 +3,7 @@ import { notFound } from "next/navigation";
 
 import { InternalShell } from "@/components/internal/internal-shell";
 import { OperationsDashboard, type OperationsTab } from "@/components/internal/operations-dashboard";
-import { requireOperationsStatisticsStaffPage } from "@/lib/server/internal-page";
+import { requireOperationsAccessPage } from "@/lib/server/internal-page";
 
 export const dynamic = "force-dynamic";
 
@@ -26,7 +26,7 @@ export default async function InternalOperationsReportsTabPage(context: RouteCon
     notFound();
   }
 
-  const user = await requireOperationsStatisticsStaffPage(`/internal/operations/reports/${tab}`);
+  const user = await requireOperationsAccessPage(`/internal/operations/reports/${tab}`);
 
   return (
     <InternalShell user={user}>

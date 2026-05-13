@@ -19,6 +19,7 @@ import {
   FiMenu,
   FiPackage,
   FiMapPin,
+  FiShield,
   FiTruck,
   FiTool,
   FiUsers,
@@ -32,6 +33,7 @@ import type { AuthUser } from "@/lib/shared/auth";
 
 const navItems = [
   { href: "/internal", icon: FiHome, label: "Tổng quan" },
+  { href: "/internal/admin", icon: FiShield, label: "Admin tổng", permission: "staff:manage" },
   { href: "/internal/operations", icon: FiBarChart2, label: "Vận hành & thống kê", permission: "operations:access" },
   { href: "/internal/tours", icon: FiPackage, label: "Quản lý tour", permission: "tour:manage" },
   { href: "/internal/suggested-tours", icon: FiClipboard, label: "Tour đề xuất", permission: "suggested_tour:manage" },
@@ -153,16 +155,10 @@ export function InternalShell({ children, user }: InternalShellProps) {
 
   const initials = useMemo(() => getInitials(user.fullName), [user.fullName]);
   const visibleNavItems = useMemo(() => {
-    if (user.role === "administrative_staff") {
-      return navItems;
-    }
-
-    const permissions = new Set(
-      user.permissions?.length ? user.permissions : ["operations:access"],
-    );
+    const permissions = new Set(user.permissions ?? []);
 
     return navItems.filter((item) => item.href === "/internal" || (item.permission && permissions.has(item.permission)));
-  }, [user.permissions, user.role]);
+  }, [user.permissions]);
   const handleLogout = async () => {
     await logoutInternalAccount();
     queryClient.setQueryData(internalSessionQueryKey, { user: null });

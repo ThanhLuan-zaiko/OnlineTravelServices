@@ -1,6 +1,6 @@
 import { z } from "zod";
 
-import { requireOperationsStatisticsStaff } from "@/lib/server/internal-auth";
+import { requireOperationsAccess } from "@/lib/server/internal-auth";
 import { internalErrorResponse, internalJson } from "@/lib/server/internal-api";
 import {
   createOperationReport,
@@ -17,7 +17,7 @@ const periodTypeSchema = z.enum(["day", "week", "month", "year"]);
 
 export async function GET(request: Request) {
   try {
-    await requireOperationsStatisticsStaff(request);
+    await requireOperationsAccess(request);
     const { searchParams } = new URL(request.url);
     const periodType = periodTypeSchema.parse(searchParams.get("periodType") ?? "month");
     const periodValue = z.string().min(1).parse(searchParams.get("periodValue") ?? new Date().toISOString().slice(0, 7));
@@ -35,7 +35,7 @@ export async function GET(request: Request) {
 export async function POST(request: Request) {
   try {
     assertSameOriginRequest(request);
-    const user = await requireOperationsStatisticsStaff(request);
+    const user = await requireOperationsAccess(request);
     const payload = operationReportMutationSchema.parse(await request.json());
     const report = await createOperationReport({ actorUserId: user.userId, payload });
 

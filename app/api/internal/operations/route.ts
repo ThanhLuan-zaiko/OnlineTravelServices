@@ -1,6 +1,6 @@
 import { z } from "zod";
 
-import { requireOperationsStatisticsStaff } from "@/lib/server/internal-auth";
+import { requireOperationsAccess } from "@/lib/server/internal-auth";
 import { internalErrorResponse, internalJson } from "@/lib/server/internal-api";
 import { getOperationsDashboard } from "@/lib/server/internal-data";
 
@@ -20,7 +20,7 @@ function today() {
 
 export async function GET(request: Request) {
   try {
-    await requireOperationsStatisticsStaff(request);
+    await requireOperationsAccess(request);
     const { searchParams } = new URL(request.url);
     const day = daySchema.parse(searchParams.get("day") ?? today());
     const month = monthSchema.parse(searchParams.get("month") ?? day.slice(0, 7));

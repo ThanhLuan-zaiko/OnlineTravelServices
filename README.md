@@ -1,6 +1,6 @@
 # ✦ Online Travel Services
 
-Ứng dụng web dịch vụ du lịch trực tuyến, xây dựng bằng Next.js App Router, React TypeScript, Tailwind CSS v4 và ScyllaDB. Dự án có giao diện khách hàng và cổng nội bộ riêng cho quyền `AdministrativeStaff` và `OperationsAndStatisticsStaff` tại `/internal`.
+Ứng dụng web dịch vụ du lịch trực tuyến, xây dựng bằng Next.js App Router, React TypeScript, Tailwind CSS v4 và ScyllaDB. Dự án có giao diện khách hàng, cổng nội bộ cho `AdministrativeStaff` và `OperationsAndStatisticsStaff`, cùng module Admin tổng seed-only tại `/internal/admin`.
 
 ## ⬢ Bức Tranh Tổng Quan
 
@@ -9,6 +9,7 @@
 - ◇ **Customer workflows**: đánh giá tour cần đăng nhập, lịch sử đặt tour và lịch sử thanh toán có tìm kiếm + phân trang rõ ràng.
 - ◇ **Internal portal**: quản lý tour, doanh thu tour, lịch khởi hành, lịch trình, khuyến mãi và đồng bộ tour public cho `AdministrativeStaff`.
 - ◇ **Operations and statistics portal**: role `operations_statistics_staff` quản lý trạng thái vận hành tour, kiểm soát lịch trình, gửi thông báo khách, xem thống kê, phân tích xu hướng và lập báo cáo tại `/internal/operations`.
+- ◇ **Admin tổng**: tài khoản tạo bằng `seed:admin-super-staff`, có toàn bộ quyền của Administrative + Operations và là quyền duy nhất được truy cập staff/system management.
 - ◇ **Auth phân quyền**: session cookie dùng chung, guard riêng cho customer và staff.
 - ◇ **ScyllaDB query-oriented schema**: dữ liệu được lưu theo các bảng lookup/projection trong `schema.cql`.
 - ◇ **Reusable realtime WebSocket**: Bun WebSocket server dùng channel để tái sử dụng cho nhiều tính năng; public tour hiện dùng channel `public-tours`.
@@ -43,6 +44,15 @@ SCYLLA_LOCAL_DATACENTER=datacenter1
 SCYLLA_KEYSPACE=online_travel_services
 AUTH_SECRET=replace-with-at-least-32-random-characters
 
+ADMIN_BACKUP_DIR=./backups
+ADMIN_SCYLLA_CONTAINER_NAME=scylladb
+ADMIN_CQL_REQUEST_TIMEOUT_SECONDS=120
+
+ADMIN_SUPER_STAFF_EMAIL=admin@example.com
+ADMIN_SUPER_STAFF_PASSWORD=replace-with-a-strong-password
+ADMIN_SUPER_STAFF_FULL_NAME=Admin Super Staff
+ADMIN_SUPER_STAFF_PHONE=0900000099
+
 ADMINISTRATIVE_STAFF_EMAIL=staff@example.com
 ADMINISTRATIVE_STAFF_PASSWORD=replace-with-a-strong-password
 ADMINISTRATIVE_STAFF_FULL_NAME=Administrative Staff
@@ -63,6 +73,12 @@ Khởi tạo database local:
 
 ```powershell
 .\reset_database.ps1
+```
+
+Seed tài khoản Admin tổng:
+
+```powershell
+bun run seed:admin-super-staff
 ```
 
 Seed tài khoản `AdministrativeStaff` đầu tiên:
@@ -98,6 +114,12 @@ Mở trình duyệt:
 
 ## ⟡ Seed Role Staff
 
+Script `bun run seed:admin-super-staff` đọc các biến `ADMIN_SUPER_STAFF_*`, tạo staff role `administrative_staff` với `staff_level = super_admin`, và cấp quyền superset:
+
+- Toàn bộ quyền business của `seed:administrative-staff`.
+- Toàn bộ quyền vận hành/thống kê của `seed:operations-statistics-staff`.
+- Quyền cấp hệ thống chỉ dành cho Admin tổng: `staff:manage`, `system:manage`.
+
 Script `bun run seed:administrative-staff` đọc các biến `ADMINISTRATIVE_STAFF_*` từ môi trường, hash mật khẩu bằng Argon2, rồi ghi đồng bộ vào:
 
 - `users_by_id`
@@ -109,11 +131,17 @@ Script `bun run seed:administrative-staff` đọc các biến `ADMINISTRATIVE_ST
 
 Script `bun run seed:operations-statistics-staff` dùng biến `OPERATIONS_STATISTICS_STAFF_*` và tạo role `operations_statistics_staff` với quyền mặc định cho `/internal/operations`.
 
+Ranh giới bảo mật: `seed:administrative-staff` và `seed:operations-statistics-staff` không cấp `staff:manage` hoặc `system:manage`. `/internal/admin` và `/api/internal/admin/*` yêu cầu đúng hồ sơ `super_admin` được seed riêng.
+
 Không commit `.env.local`. File này chứa email, mật khẩu seed và `AUTH_SECRET`, chỉ dùng cục bộ hoặc qua secret manager khi deploy.
 
 ## ◇ Cổng Nội Bộ `/internal`
 
-Quyền hiện tại: `administrative_staff` và `operations_statistics_staff`.
+Quyền hiện tại:
+
+- `administrative_staff`: quản trị nghiệp vụ tour/khách hàng/khuyến mãi/doanh thu/audit, không có quyền hệ thống mặc định.
+- `operations_statistics_staff`: vận hành tour, lịch trình, thông báo, thống kê, xu hướng và báo cáo.
+- Admin tổng: vẫn dùng role `administrative_staff` để đăng nhập, nhưng phải có `staff_level = super_admin` và quyền `staff:manage`, `system:manage`.
 
 Chức năng đã có:
 
@@ -132,6 +160,15 @@ Operations and Statistics module:
 - `/internal/operations/trends`: phân tích xu hướng; tab con `/analysis`, `/snapshots`.
 - `/internal/operations/reports`: lưu báo cáo và xuất CSV; tab con `/editor`, `/list`.
 
+Admin tổng module:
+
+- `/internal/admin`: tổng quan quyền Admin tổng.
+- `/internal/admin/staff/list`, `/create`, `/roles`, `/permissions`, `/activity`, `/disabled`.
+- `/internal/admin/customers/list`, `/vip`, `/rewards`, `/feedback`, `/security`, `/violations`, `/segments`.
+- `/internal/admin/revenue/dashboard`, `/forecast`, `/profitability`, `/compare`, `/taxes`, `/losses`.
+- `/internal/admin/operations/*`: nhúng toàn bộ module Operations bằng URL riêng.
+- `/internal/admin/system/tasks`, `/jobs`, `/backups`, `/restore`, `/maintenance`, `/health`.
+
 Các route chính:
 
 - `/internal`
@@ -149,6 +186,7 @@ bun run dev
 bun run dev:realtime-ws
 bun run build
 bun run lint
+bun run seed:admin-super-staff
 bun run seed:administrative-staff
 bun run seed:operations-statistics-staff
 .\reset_database.ps1

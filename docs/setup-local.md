@@ -32,6 +32,15 @@ SCYLLA_LOCAL_DATACENTER=datacenter1
 SCYLLA_KEYSPACE=online_travel_services
 AUTH_SECRET=replace-with-at-least-32-random-characters
 
+ADMIN_BACKUP_DIR=./backups
+ADMIN_SCYLLA_CONTAINER_NAME=scylladb
+ADMIN_CQL_REQUEST_TIMEOUT_SECONDS=120
+
+ADMIN_SUPER_STAFF_EMAIL=admin@example.com
+ADMIN_SUPER_STAFF_PASSWORD=replace-with-a-strong-password
+ADMIN_SUPER_STAFF_FULL_NAME=Admin Super Staff
+ADMIN_SUPER_STAFF_PHONE=0900000099
+
 ADMINISTRATIVE_STAFF_EMAIL=staff@example.com
 ADMINISTRATIVE_STAFF_PASSWORD=replace-with-a-strong-password
 ADMINISTRATIVE_STAFF_FULL_NAME=Administrative Staff
@@ -64,6 +73,18 @@ Nếu muốn drop keyspace trước khi load lại schema:
 .\reset_database.ps1 -DropKeyspaceFirst
 ```
 
+## ✧ Seed AdminSuperStaff
+
+Sau khi database đã sẵn sàng:
+
+```powershell
+bun run seed:admin-super-staff
+```
+
+Script tạo tài khoản Admin tổng với role `administrative_staff`, `staff_level = super_admin`, toàn bộ quyền của AdministrativeStaff + OperationsAndStatisticsStaff, và hai quyền cấp hệ thống `staff:manage`, `system:manage`.
+
+Tài khoản này là tài khoản duy nhất được vào `/internal/admin` và gọi `/api/internal/admin/*`. Không tạo Admin tổng bằng UI staff hoặc script staff thường.
+
 ## ✧ Seed AdministrativeStaff
 
 Sau khi database đã sẵn sàng:
@@ -78,6 +99,7 @@ Script sẽ:
 - Hash mật khẩu bằng Argon2.
 - Tạo user role `administrative_staff`.
 - Tạo staff profile trong các bảng `staff_*`.
+- Cấp quyền nghiệp vụ administrative, không cấp `operations:access`, `staff:manage`, `system:manage`.
 - Không ghi secret nào vào source code.
 
 Nếu email đã tồn tại đúng role, script sẽ dừng nhẹ và báo tài khoản đã có. Nếu email hoặc số điện thoại thuộc role khác, script sẽ báo lỗi để tránh ghi đè nhầm dữ liệu.
@@ -91,6 +113,8 @@ bun run seed:operations-statistics-staff
 ```
 
 Script tạo user role `operations_statistics_staff`, staff profile và bộ quyền mặc định cho module `/internal/operations`. Tài khoản này đăng nhập ở `/internal/login`; sau khi vào `/internal`, hệ thống chuyển về `/internal/operations`.
+
+Operations staff không có quyền `staff:manage` hoặc `system:manage`.
 
 ## ⬡ Chạy App
 

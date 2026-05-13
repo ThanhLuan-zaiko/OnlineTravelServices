@@ -2,7 +2,7 @@ import type { Metadata } from "next";
 
 import { InternalShell } from "@/components/internal/internal-shell";
 import { OperationsDashboard } from "@/components/internal/operations-dashboard";
-import { requireOperationsStatisticsStaffPage } from "@/lib/server/internal-page";
+import { requireOperationsAccessPage } from "@/lib/server/internal-page";
 
 export const dynamic = "force-dynamic";
 
@@ -11,7 +11,7 @@ export const metadata: Metadata = {
 };
 
 export default async function InternalOperationsSchedulesPage() {
-  const user = await requireOperationsStatisticsStaffPage("/internal/operations/schedules");
+  const user = await requireOperationsAccessPage("/internal/operations/schedules");
 
   return (
     <InternalShell user={user}>

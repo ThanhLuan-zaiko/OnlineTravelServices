@@ -11,7 +11,7 @@ import type { AuthUser } from "@/lib/shared/auth";
 export const internalSessionQueryKey = ["internal", "session"] as const;
 
 export type InternalSession = {
-  user: AuthUser | null;
+  user: (AuthUser & { permissions?: string[] }) | null;
 };
 
 async function fetchInternalSession(): Promise<InternalSession> {

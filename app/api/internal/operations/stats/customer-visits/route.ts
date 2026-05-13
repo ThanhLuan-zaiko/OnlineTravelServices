@@ -1,6 +1,6 @@
 import { z } from "zod";
 
-import { requireOperationsStatisticsStaff } from "@/lib/server/internal-auth";
+import { requireOperationsAccess } from "@/lib/server/internal-auth";
 import { internalErrorResponse, internalJson } from "@/lib/server/internal-api";
 import { listOperationCustomerVisitStats } from "@/lib/server/internal-data";
 
@@ -11,7 +11,7 @@ const periodTypeSchema = z.enum(["day", "week", "month", "year"]);
 
 export async function GET(request: Request) {
   try {
-    await requireOperationsStatisticsStaff(request);
+    await requireOperationsAccess(request);
     const { searchParams } = new URL(request.url);
     const periodType = periodTypeSchema.parse(searchParams.get("periodType") ?? "month");
     const limit = Number(searchParams.get("limit") ?? "20");

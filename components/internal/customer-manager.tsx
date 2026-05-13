@@ -3,7 +3,7 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { usePathname } from "next/navigation";
 import { useState, type FormEvent } from "react";
-import { FiGift, FiList, FiLock, FiMessageSquare, FiSave, FiShield, FiStar } from "react-icons/fi";
+import { FiGift, FiList, FiLock, FiMessageSquare, FiSave, FiShield, FiStar, FiUsers } from "react-icons/fi";
 
 import { SelectField } from "@/components/ui/select-field";
 import { useToast } from "@/components/ui/toast";
@@ -24,7 +24,7 @@ import type {
 import { InlineSelect, ListFilters, WorkspaceTabs } from "./catalog-workspace-ui";
 import { EmptyState, InternalPanel, InternalPageHeader, StatusPill } from "./internal-primitives";
 
-type CustomerTab = "feedback" | "list" | "rewards" | "security" | "vip";
+type CustomerTab = "feedback" | "list" | "rewards" | "security" | "segments" | "violations" | "vip";
 
 const tabs = [
   { href: "/internal/customers/list", icon: FiList, label: "Danh sách" },
@@ -32,6 +32,11 @@ const tabs = [
   { href: "/internal/customers/feedback", icon: FiMessageSquare, label: "Phản hồi" },
   { href: "/internal/customers/rewards", icon: FiGift, label: "Quà tặng" },
   { href: "/internal/customers/security", icon: FiLock, label: "Bảo mật" },
+];
+
+const adminOnlyTabs = [
+  { href: "/internal/customers/violations", icon: FiShield, label: "Vi phạm" },
+  { href: "/internal/customers/segments", icon: FiUsers, label: "Phân khúc" },
 ];
 
 const customerTierOptions = [
@@ -57,11 +62,13 @@ const initialReward: CustomerRewardMutationRequest = {
   title: "",
 };
 
-function getTab(pathname: string): CustomerTab {
-  if (pathname.startsWith("/internal/customers/vip")) return "vip";
-  if (pathname.startsWith("/internal/customers/feedback")) return "feedback";
-  if (pathname.startsWith("/internal/customers/rewards")) return "rewards";
-  if (pathname.startsWith("/internal/customers/security")) return "security";
+function getTab(pathname: string, basePath: string): CustomerTab {
+  if (pathname.startsWith(`${basePath}/vip`)) return "vip";
+  if (pathname.startsWith(`${basePath}/feedback`)) return "feedback";
+  if (pathname.startsWith(`${basePath}/rewards`)) return "rewards";
+  if (pathname.startsWith(`${basePath}/security`)) return "security";
+  if (pathname.startsWith(`${basePath}/violations`)) return "violations";
+  if (pathname.startsWith(`${basePath}/segments`)) return "segments";
   return "list";
 }
 
@@ -69,9 +76,9 @@ function money(value: string) {
   return `${Number(value).toLocaleString("vi-VN")} đ`;
 }
 
-export function CustomerManager() {
+export function CustomerManager({ basePath = "/internal/customers" }: { basePath?: string }) {
   const pathname = usePathname();
-  const activeTab = getTab(pathname);
+  const activeTab = getTab(pathname, basePath);
   const queryClient = useQueryClient();
   const { showToast } = useToast();
   const [selectedCustomer, setSelectedCustomer] = useState<InternalCustomerProfile | null>(null);
@@ -145,7 +152,13 @@ export function CustomerManager() {
         description="Xem hồ sơ khách hàng, phân loại thường/VIP, theo dõi lịch sử, gán quà tặng và kiểm tra thông tin bảo mật."
         title="Khách hàng"
       />
-      <WorkspaceTabs pathname={pathname} tabs={tabs} />
+      <WorkspaceTabs
+        pathname={pathname}
+        tabs={(basePath.startsWith("/internal/admin") ? [...tabs, ...adminOnlyTabs] : tabs).map((tab) => ({
+          ...tab,
+          href: tab.href.replace("/internal/customers", basePath),
+        }))}
+      />
 
       <div className="grid gap-5 xl:grid-cols-[0.95fr_1.05fr]">
         <InternalPanel className="p-4">
@@ -207,7 +220,7 @@ export function CustomerManager() {
                 </div>
               </InternalPanel>
 
-              {(activeTab === "list" || activeTab === "vip") ? (
+              {(activeTab === "list" || activeTab === "vip" || activeTab === "segments") ? (
                 <InternalPanel className="p-4">
                   <h3 className="text-base font-semibold">Phân loại khách hàng</h3>
                   <div className="mt-4 grid gap-4 md:grid-cols-2">
@@ -267,11 +280,11 @@ export function CustomerManager() {
                 </div>
               </InternalPanel>
 
-              {activeTab === "security" ? (
+              {activeTab === "security" || activeTab === "violations" ? (
                 <InternalPanel className="p-4">
                   <div className="flex items-center gap-2">
                     <FiShield className="text-slate-400" size={16} />
-                    <h3 className="text-base font-semibold">Bảo mật thông tin</h3>
+                    <h3 className="text-base font-semibold">{activeTab === "violations" ? "Xử lý vi phạm" : "Bảo mật thông tin"}</h3>
                   </div>
                   <div className="mt-4 grid gap-3 md:grid-cols-2">
                     <Metric label="User ID" value={selectedCustomer.userId} />

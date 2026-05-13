@@ -1,4 +1,4 @@
-import { requireOperationsStatisticsStaff } from "@/lib/server/internal-auth";
+import { requireOperationsAccess } from "@/lib/server/internal-auth";
 import { internalErrorResponse, internalJson } from "@/lib/server/internal-api";
 import { listTourOperationEvents } from "@/lib/server/internal-data";
 
@@ -13,7 +13,7 @@ type RouteContext = {
 
 export async function GET(request: Request, context: RouteContext) {
   try {
-    await requireOperationsStatisticsStaff(request);
+    await requireOperationsAccess(request);
     const { tourId } = await context.params;
     const events = await listTourOperationEvents(tourId);
 

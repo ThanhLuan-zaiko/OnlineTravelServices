@@ -1,4 +1,4 @@
-import { requireOperationsStatisticsStaff } from "@/lib/server/internal-auth";
+import { requireOperationsAccess } from "@/lib/server/internal-auth";
 import { internalErrorResponse, internalJson } from "@/lib/server/internal-api";
 import {
   createOperationTrendSnapshot,
@@ -16,7 +16,7 @@ export const runtime = "nodejs";
 
 export async function GET(request: Request) {
   try {
-    await requireOperationsStatisticsStaff(request);
+    await requireOperationsAccess(request);
     const { searchParams } = new URL(request.url);
     const analysisType = operationTrendAnalysisTypeSchema.parse(searchParams.get("analysisType") ?? "customer_trend");
     const cursor = searchParams.get("cursor");
@@ -33,7 +33,7 @@ export async function GET(request: Request) {
 export async function POST(request: Request) {
   try {
     assertSameOriginRequest(request);
-    const user = await requireOperationsStatisticsStaff(request);
+    const user = await requireOperationsAccess(request);
     const payload = operationTrendSnapshotMutationSchema.parse(await request.json());
     const snapshot = await createOperationTrendSnapshot({ actorUserId: user.userId, payload });
 

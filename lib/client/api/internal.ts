@@ -1,4 +1,5 @@
 export * from "./internal-audit";
+export * from "./internal-admin";
 export * from "./internal-customers";
 export * from "./internal-destinations";
 export * from "./internal-notifications";
