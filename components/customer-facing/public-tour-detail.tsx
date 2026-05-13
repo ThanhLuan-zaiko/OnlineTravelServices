@@ -12,6 +12,7 @@ import {
 
 import type { PublicTourDetail as PublicTourDetailType } from "@/lib/shared/public-tours";
 
+import { TourBookingPanel } from "./tour-booking-panel";
 import { TourReviewPanel } from "./tour-review-panel";
 
 function formatMoney(value: string, currency: string) {
@@ -244,6 +245,14 @@ export function PublicTourDetail({ tour }: { tour: PublicTourDetailType }) {
           </div>
 
           <aside className="flex flex-col gap-4">
+            <TourBookingPanel
+              maxGuests={tour.maxGuests}
+              minGuests={tour.minGuests}
+              schedules={tour.schedules}
+              slug={tour.slug}
+              title={tour.title}
+              tourId={tour.tourId}
+            />
             <div className="rounded-lg border border-slate-200 p-4 dark:border-neutral-800">
               <p className="text-xs font-semibold uppercase text-sky-700 dark:text-sky-300">
                 Vị trí

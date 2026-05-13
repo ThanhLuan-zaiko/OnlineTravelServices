@@ -2,6 +2,10 @@ import type {
   CustomerBookingHistoryResponse,
   CustomerPaymentHistoryResponse,
 } from "@/lib/shared/customer-activity";
+import type {
+  CustomerBookingMutationRequest,
+  CustomerBookingMutationResponse,
+} from "@/lib/shared/bookings";
 
 import { apiClient } from "./core";
 
@@ -33,6 +37,12 @@ export async function getCustomerPaymentsPage(input: {
       q: input.query || undefined,
     },
   });
+
+  return response.data;
+}
+
+export async function createCustomerBooking(input: CustomerBookingMutationRequest) {
+  const response = await apiClient.post<CustomerBookingMutationResponse>("/customer/bookings", input);
 
   return response.data;
 }

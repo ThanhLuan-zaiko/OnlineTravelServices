@@ -18,6 +18,11 @@ export type ScyllaHealth = {
   releaseVersion: string | null;
 };
 
+export type ScyllaBatchQuery = {
+  params?: unknown[];
+  query: string;
+};
+
 function parseContactPoints(value: string) {
   return value
     .split(",")
@@ -92,6 +97,30 @@ export async function executeQuery<T = Record<string, unknown>>(
   });
 
   return result.rows as T[];
+}
+
+export async function executeConditionalQuery<T = Record<string, unknown>>(
+  query: string,
+  params: unknown[] = [],
+) {
+  const result = await getScyllaClient().execute(query, params, {
+    prepare: true,
+  });
+
+  return {
+    applied: result.wasApplied(),
+    rows: result.rows as T[],
+  };
+}
+
+export async function executeBatch(queries: ScyllaBatchQuery[]) {
+  if (queries.length === 0) {
+    return;
+  }
+
+  await getScyllaClient().batch(queries, {
+    prepare: true,
+  });
 }
 
 export async function executePagedQuery<T = Record<string, unknown>>(
