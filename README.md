@@ -1,6 +1,6 @@
 # ✦ Online Travel Services
 
-Ứng dụng web dịch vụ du lịch trực tuyến, xây dựng bằng Next.js App Router, React TypeScript, Tailwind CSS v4 và ScyllaDB. Dự án có giao diện khách hàng và cổng nội bộ riêng cho quyền `AdministrativeStaff` tại `/internal`.
+Ứng dụng web dịch vụ du lịch trực tuyến, xây dựng bằng Next.js App Router, React TypeScript, Tailwind CSS v4 và ScyllaDB. Dự án có giao diện khách hàng và cổng nội bộ riêng cho quyền `AdministrativeStaff` và `OperationsAndStatisticsStaff` tại `/internal`.
 
 ## ⬢ Bức Tranh Tổng Quan
 
@@ -8,6 +8,7 @@
 - ◇ **Public tour landing pages**: trang chủ, tour trong nước, tour nước ngoài, sự kiện, chi tiết tour, Google Map, tìm kiếm, cuộn vô tận và tab quốc gia cho tour nước ngoài.
 - ◇ **Customer workflows**: đánh giá tour cần đăng nhập, lịch sử đặt tour và lịch sử thanh toán có tìm kiếm + phân trang rõ ràng.
 - ◇ **Internal portal**: quản lý tour, doanh thu tour, lịch khởi hành, lịch trình, khuyến mãi và đồng bộ tour public cho `AdministrativeStaff`.
+- ◇ **Operations and statistics portal**: role `operations_statistics_staff` quản lý trạng thái vận hành tour, kiểm soát lịch trình, gửi thông báo khách, xem thống kê, phân tích xu hướng và lập báo cáo tại `/internal/operations`.
 - ◇ **Auth phân quyền**: session cookie dùng chung, guard riêng cho customer và staff.
 - ◇ **ScyllaDB query-oriented schema**: dữ liệu được lưu theo các bảng lookup/projection trong `schema.cql`.
 - ◇ **Reusable realtime WebSocket**: Bun WebSocket server dùng channel để tái sử dụng cho nhiều tính năng; public tour hiện dùng channel `public-tours`.
@@ -47,6 +48,11 @@ ADMINISTRATIVE_STAFF_PASSWORD=replace-with-a-strong-password
 ADMINISTRATIVE_STAFF_FULL_NAME=Administrative Staff
 ADMINISTRATIVE_STAFF_PHONE=0900000000
 
+OPERATIONS_STATISTICS_STAFF_EMAIL=operations@example.com
+OPERATIONS_STATISTICS_STAFF_PASSWORD=replace-with-a-strong-password
+OPERATIONS_STATISTICS_STAFF_FULL_NAME=Operations Statistics Staff
+OPERATIONS_STATISTICS_STAFF_PHONE=0900000001
+
 REALTIME_WS_PORT=3002
 REALTIME_WS_PUBLISH_URL=http://127.0.0.1:3002/publish
 NEXT_PUBLIC_REALTIME_WS_URL=ws://localhost:3002/realtime-updates
@@ -63,6 +69,12 @@ Seed tài khoản `AdministrativeStaff` đầu tiên:
 
 ```powershell
 bun run seed:administrative-staff
+```
+
+Seed tài khoản `OperationsAndStatisticsStaff`:
+
+```powershell
+bun run seed:operations-statistics-staff
 ```
 
 Chạy ứng dụng:
@@ -84,7 +96,7 @@ Mở trình duyệt:
 - ⟡ Domestic tours: `http://localhost:3000/tours/domestic`
 - ⟡ International tours: `http://localhost:3000/tours/international`
 
-## ⟡ Seed Role AdministrativeStaff
+## ⟡ Seed Role Staff
 
 Script `bun run seed:administrative-staff` đọc các biến `ADMINISTRATIVE_STAFF_*` từ môi trường, hash mật khẩu bằng Argon2, rồi ghi đồng bộ vào:
 
@@ -95,11 +107,13 @@ Script `bun run seed:administrative-staff` đọc các biến `ADMINISTRATIVE_ST
 - `staff_by_id`
 - `staff_by_role`
 
+Script `bun run seed:operations-statistics-staff` dùng biến `OPERATIONS_STATISTICS_STAFF_*` và tạo role `operations_statistics_staff` với quyền mặc định cho `/internal/operations`.
+
 Không commit `.env.local`. File này chứa email, mật khẩu seed và `AUTH_SECRET`, chỉ dùng cục bộ hoặc qua secret manager khi deploy.
 
 ## ◇ Cổng Nội Bộ `/internal`
 
-Quyền hiện tại: `administrative_staff`.
+Quyền hiện tại: `administrative_staff` và `operations_statistics_staff`.
 
 Chức năng đã có:
 
@@ -107,6 +121,16 @@ Chức năng đã có:
 - Quản lý lịch khởi hành và lịch trình từng tour.
 - Quản lý chương trình khuyến mãi.
 - Theo dõi doanh thu tour từ bảng thống kê.
+
+Operations and Statistics module:
+
+- `/internal/operations`: tổng quan và điều hướng module.
+- `/internal/operations/tours`: cập nhật trạng thái vận hành tour; tab con `/status`, `/events`.
+- `/internal/operations/schedules`: kiểm soát lịch trình; tab con `/adjust`, `/calendar`.
+- `/internal/operations/notifications`: gửi thông báo cập nhật cho khách; tab con `/compose`, `/history`.
+- `/internal/operations/statistics`: thống kê khách và địa điểm; tab con `/visits`, `/performance`.
+- `/internal/operations/trends`: phân tích xu hướng; tab con `/analysis`, `/snapshots`.
+- `/internal/operations/reports`: lưu báo cáo và xuất CSV; tab con `/editor`, `/list`.
 
 Các route chính:
 
@@ -126,6 +150,7 @@ bun run dev:realtime-ws
 bun run build
 bun run lint
 bun run seed:administrative-staff
+bun run seed:operations-statistics-staff
 .\reset_database.ps1
 ```
 

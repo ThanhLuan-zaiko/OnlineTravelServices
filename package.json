@@ -11,7 +11,8 @@
     "start:realtime-ws": "bun run scripts/realtime-ws-server.ts",
     "start:tour-ws": "bun run scripts/public-tour-ws-server.ts",
     "lint": "eslint",
-    "seed:administrative-staff": "bun run scripts/seed-administrative-staff.ts"
+    "seed:administrative-staff": "bun run scripts/seed-administrative-staff.ts",
+    "seed:operations-statistics-staff": "bun run scripts/seed-operations-statistics-staff.ts"
   },
   "dependencies": {
     "@node-rs/argon2": "^2.0.2",

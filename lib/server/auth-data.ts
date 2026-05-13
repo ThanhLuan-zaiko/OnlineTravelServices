@@ -8,6 +8,7 @@ import {
   CUSTOMER_ROLE,
   DEFAULT_CUSTOMER_TIER,
   DEFAULT_VIP_TIER,
+  OPERATIONS_STATISTICS_STAFF_ROLE,
 } from "@/lib/server/auth-constants";
 import { executeQuery, getScyllaClient } from "@/lib/server/scylla";
 import type { AccountProfile, AuthUser, UserRole } from "@/lib/shared/auth";
@@ -70,7 +71,9 @@ function localDateToString(value: types.LocalDate | string | null | undefined) {
 
 export function toAuthUser(row: UserByEmailRow | UserByIdRow): AuthUser {
   const role =
-    row.role === ADMINISTRATIVE_STAFF_ROLE || row.role === CUSTOMER_ROLE
+    row.role === ADMINISTRATIVE_STAFF_ROLE ||
+    row.role === CUSTOMER_ROLE ||
+    row.role === OPERATIONS_STATISTICS_STAFF_ROLE
       ? (row.role as UserRole)
       : CUSTOMER_ROLE;
 

@@ -2,6 +2,7 @@ export * from "./internal-audit";
 export * from "./internal-customers";
 export * from "./internal-destinations";
 export * from "./internal-notifications";
+export * from "./internal-operations";
 export * from "./internal-promotions";
 export * from "./internal-revenue";
 export * from "./internal-service-providers";

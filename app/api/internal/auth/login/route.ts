@@ -5,7 +5,7 @@ import {
   AUTH_COOKIE_NAME,
   AuthError,
   getAuthCookieOptions,
-  loginAdministrativeStaff,
+  loginInternalStaff,
 } from "@/lib/server/auth";
 import { assertSameOriginRequest } from "@/lib/server/request-security";
 import { logServerError } from "@/lib/server/server-log";
@@ -38,7 +38,7 @@ export async function POST(request: Request) {
   try {
     assertSameOriginRequest(request);
     const input = loginRequestSchema.parse(await request.json());
-    const { user, session } = await loginAdministrativeStaff(input, request);
+    const { user, session } = await loginInternalStaff(input, request);
     const response = NextResponse.json(
       { user },
       {

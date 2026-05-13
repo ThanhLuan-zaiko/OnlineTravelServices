@@ -37,6 +37,11 @@ ADMINISTRATIVE_STAFF_PASSWORD=replace-with-a-strong-password
 ADMINISTRATIVE_STAFF_FULL_NAME=Administrative Staff
 ADMINISTRATIVE_STAFF_PHONE=0900000000
 
+OPERATIONS_STATISTICS_STAFF_EMAIL=operations@example.com
+OPERATIONS_STATISTICS_STAFF_PASSWORD=replace-with-a-strong-password
+OPERATIONS_STATISTICS_STAFF_FULL_NAME=Operations Statistics Staff
+OPERATIONS_STATISTICS_STAFF_PHONE=0900000001
+
 REALTIME_WS_PORT=3002
 REALTIME_WS_PUBLISH_URL=http://127.0.0.1:3002/publish
 NEXT_PUBLIC_REALTIME_WS_URL=ws://localhost:3002/realtime-updates
@@ -76,6 +81,16 @@ Script sẽ:
 - Không ghi secret nào vào source code.
 
 Nếu email đã tồn tại đúng role, script sẽ dừng nhẹ và báo tài khoản đã có. Nếu email hoặc số điện thoại thuộc role khác, script sẽ báo lỗi để tránh ghi đè nhầm dữ liệu.
+
+## ✧ Seed Operations And Statistics Staff
+
+Sau khi database đã sẵn sàng:
+
+```powershell
+bun run seed:operations-statistics-staff
+```
+
+Script tạo user role `operations_statistics_staff`, staff profile và bộ quyền mặc định cho module `/internal/operations`. Tài khoản này đăng nhập ở `/internal/login`; sau khi vào `/internal`, hệ thống chuyển về `/internal/operations`.
 
 ## ⬡ Chạy App
 

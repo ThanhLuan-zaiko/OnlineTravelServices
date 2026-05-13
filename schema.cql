@@ -1245,6 +1245,60 @@ CREATE TABLE IF NOT EXISTS trend_analysis_snapshots (
   PRIMARY KEY ((analysis_type), snapshot_time, snapshot_id)
 ) WITH CLUSTERING ORDER BY (snapshot_time DESC, snapshot_id ASC);
 
+CREATE TABLE IF NOT EXISTS tour_operation_events_by_tour (
+  tour_id uuid,
+  event_time timeuuid,
+  event_id uuid,
+  tour_title text,
+  status text,
+  guest_count int,
+  note text,
+  changed_by uuid,
+  PRIMARY KEY ((tour_id), event_time, event_id)
+) WITH CLUSTERING ORDER BY (event_time DESC, event_id ASC);
+
+CREATE TABLE IF NOT EXISTS operation_reports_by_staff (
+  created_by uuid,
+  created_at timeuuid,
+  report_id uuid,
+  period_type text,
+  period_value text,
+  title text,
+  content text,
+  status text,
+  source_data_uri text,
+  updated_at timestamp,
+  PRIMARY KEY ((created_by), created_at, report_id)
+) WITH CLUSTERING ORDER BY (created_at DESC, report_id ASC);
+
+CREATE TABLE IF NOT EXISTS operation_reports_by_period (
+  period_type text,
+  period_value text,
+  created_at timeuuid,
+  report_id uuid,
+  created_by uuid,
+  title text,
+  content text,
+  status text,
+  source_data_uri text,
+  updated_at timestamp,
+  PRIMARY KEY ((period_type), period_value, created_at, report_id)
+) WITH CLUSTERING ORDER BY (period_value DESC, created_at DESC, report_id ASC);
+
+CREATE TABLE IF NOT EXISTS customer_notifications_by_booking (
+  booking_id uuid,
+  notification_time timeuuid,
+  notification_id uuid,
+  tour_id uuid,
+  user_id uuid,
+  update_type text,
+  title text,
+  body text,
+  delivery_status text,
+  created_by uuid,
+  PRIMARY KEY ((booking_id), notification_time, notification_id)
+) WITH CLUSTERING ORDER BY (notification_time DESC, notification_id ASC);
+
 -- Audit, approval workflows, and partner change control.
 
 CREATE TABLE IF NOT EXISTS audit_log_by_actor (

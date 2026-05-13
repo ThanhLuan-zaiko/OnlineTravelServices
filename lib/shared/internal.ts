@@ -111,6 +111,14 @@ export const tourApprovalStatusSchema = z.enum(["approved", "change_requested", 
 export const tourApprovalDecisionSchema = z.enum(["approved", "change_requested", "rejected"]);
 export const staffNotificationStatusSchema = z.enum(["all", "read", "unread"]);
 export const customerListModeSchema = z.enum(["all", "status", "tier", "vip"]);
+export const operationTourLifecycleStatusSchema = z.enum(["preparing", "in_progress", "completed", "cancelled"]);
+export const operationReportStatusSchema = z.enum(["draft", "submitted", "archived"]);
+export const operationTrendAnalysisTypeSchema = z.enum([
+  "customer_trend",
+  "destination_effectiveness",
+  "demand_forecast",
+  "promotion_sentiment",
+]);
 
 export type VehicleCatalogOption = {
   id: string;
@@ -331,6 +339,52 @@ export const customerRewardMutationSchema = z.object({
   title: z.string().trim().min(2, "Vui lòng nhập tên quà."),
 });
 
+export const operationTourStatusMutationSchema = z.object({
+  guestCount: z.coerce.number().int().min(0, "Số lượng khách không hợp lệ.").optional(),
+  note: optionalTextSchema,
+  status: operationTourLifecycleStatusSchema,
+});
+
+export const operationScheduleAdjustmentSchema = z.object({
+  availableSlots: z.coerce.number().int().min(0, "Số chỗ còn lại không hợp lệ.").optional(),
+  bookedSlots: z.coerce.number().int().min(0, "Số chỗ đã đặt không hợp lệ.").optional(),
+  currency: z.string().trim().min(3).max(3).toUpperCase().optional(),
+  departureDate: dateSchema,
+  departureTime: z.string().trim().min(1, "Vui lòng nhập giờ khởi hành.").optional(),
+  note: optionalTextSchema,
+  price: decimalStringSchema.optional(),
+  status: scheduleStatusSchema.optional(),
+}).refine((value) => Object.keys(value).some((key) => key !== "departureDate" && key !== "note" && value[key as keyof typeof value] !== undefined), {
+  message: "Vui lòng chọn ít nhất một thông tin cần điều chỉnh.",
+  path: ["departureDate"],
+});
+
+export const operationCustomerNotificationSchema = z.object({
+  body: z.string().trim().min(3, "Vui lòng nhập nội dung thông báo."),
+  bookingId: z.string().trim().uuid("Booking ID không hợp lệ.").nullable().optional(),
+  title: z.string().trim().min(3, "Vui lòng nhập tiêu đề thông báo."),
+  updateType: z.string().trim().min(2, "Vui lòng nhập loại cập nhật."),
+  userId: z.string().trim().uuid("User ID không hợp lệ.").nullable().optional(),
+});
+
+export const operationTrendSnapshotMutationSchema = z.object({
+  analysisType: operationTrendAnalysisTypeSchema,
+  dataUri: optionalTextSchema,
+  inputPeriod: z.string().trim().min(2, "Vui lòng nhập kỳ dữ liệu."),
+  positiveTrend: z.coerce.boolean(),
+  resultSummary: z.string().trim().min(3, "Vui lòng nhập kết quả phân tích."),
+  title: z.string().trim().min(3, "Vui lòng nhập tiêu đề phân tích."),
+});
+
+export const operationReportMutationSchema = z.object({
+  content: z.string().trim().min(3, "Vui lòng nhập nội dung báo cáo."),
+  periodType: z.enum(["day", "week", "month", "year"]),
+  periodValue: z.string().trim().min(2, "Vui lòng nhập kỳ báo cáo."),
+  sourceDataUri: optionalTextSchema,
+  status: operationReportStatusSchema.default("draft"),
+  title: z.string().trim().min(3, "Vui lòng nhập tiêu đề báo cáo."),
+});
+
 export type InternalLoginRequest = z.infer<typeof internalLoginRequestSchema>;
 export type InternalAccountProfileRequest = z.infer<typeof internalAccountProfileRequestSchema>;
 export type TourMutationRequest = z.infer<typeof tourMutationSchema>;
@@ -348,6 +402,11 @@ export type TourApprovalMutationRequest = z.infer<typeof tourApprovalMutationSch
 export type TourApprovalDecisionRequest = z.infer<typeof tourApprovalDecisionRequestSchema>;
 export type CustomerTierMutationRequest = z.infer<typeof customerTierMutationSchema>;
 export type CustomerRewardMutationRequest = z.infer<typeof customerRewardMutationSchema>;
+export type OperationTourStatusMutationRequest = z.infer<typeof operationTourStatusMutationSchema>;
+export type OperationScheduleAdjustmentRequest = z.infer<typeof operationScheduleAdjustmentSchema>;
+export type OperationCustomerNotificationRequest = z.infer<typeof operationCustomerNotificationSchema>;
+export type OperationTrendSnapshotMutationRequest = z.infer<typeof operationTrendSnapshotMutationSchema>;
+export type OperationReportMutationRequest = z.infer<typeof operationReportMutationSchema>;
 
 export type InternalTour = TourMutationRequest & {
   approvedBy: string | null;
@@ -619,11 +678,84 @@ export type InternalStaffNotification = {
   title: string;
 };
 
+export type OperationTourEvent = {
+  changedBy: string;
+  eventId: string;
+  eventTime: string;
+  guestCount: number | null;
+  note: string | null;
+  status: z.infer<typeof operationTourLifecycleStatusSchema>;
+  tourId: string;
+  tourTitle: string;
+};
+
+export type OperationTourOverview = InternalTour & {
+  lifecycleEvent: OperationTourEvent | null;
+  schedules: InternalSchedule[];
+};
+
+export type OperationCustomerVisitStat = {
+  bookingCount: number;
+  calculatedAt: string | null;
+  locationKey: string;
+  newCustomerCount: number;
+  periodType: "day" | "week" | "month" | "year";
+  periodValue: string;
+  vipCustomerCount: number;
+  visitorCount: number;
+};
+
+export type OperationTrendSnapshot = {
+  analysisType: z.infer<typeof operationTrendAnalysisTypeSchema>;
+  createdBy: string | null;
+  dataUri: string | null;
+  inputPeriod: string;
+  positiveTrend: boolean;
+  resultSummary: string;
+  snapshotId: string;
+  snapshotTime: string;
+  title: string;
+};
+
+export type OperationReport = {
+  content: string;
+  createdAt: string;
+  createdBy: string;
+  periodType: "day" | "week" | "month" | "year";
+  periodValue: string;
+  reportId: string;
+  sourceDataUri: string | null;
+  status: z.infer<typeof operationReportStatusSchema>;
+  title: string;
+  updatedAt: string;
+};
+
+export type OperationCustomerNotification = {
+  body: string;
+  bookingId: string | null;
+  deliveryStatus: string;
+  notificationId: string;
+  notificationTime: string;
+  title: string;
+  tourId: string;
+  updateType: string;
+  userId: string | null;
+};
+
+export type OperationDashboardResponse = {
+  bookingSummary: InternalRevenueSummary;
+  customerVisitStats: OperationCustomerVisitStat[];
+  recentEvents: OperationTourEvent[];
+  revenue: InternalRevenueResponse;
+  tours: OperationTourOverview[];
+  trendSnapshots: OperationTrendSnapshot[];
+};
+
 export type InternalAccountProfile = {
   userId: string;
   email: string;
   fullName: string;
-  role: "administrative_staff";
+  role: "administrative_staff" | "operations_statistics_staff";
   customerTier: string;
   vipTier: string;
   phone: string;

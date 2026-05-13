@@ -148,3 +148,16 @@ export {
   updateInternalVehicleCatalog,
 } from "@/lib/server/internal-data/vehicle-catalog";
 export { getRevenueDashboard } from "@/lib/server/internal-data/revenue";
+export {
+  adjustOperationSchedule,
+  createOperationReport,
+  createOperationTrendSnapshot,
+  getOperationsDashboard,
+  listOperationCustomerVisitStats,
+  listOperationNotificationsByTour,
+  listOperationReports,
+  listOperationTrendSnapshots,
+  listTourOperationEvents,
+  sendOperationCustomerNotification,
+  updateTourOperationStatus,
+} from "@/lib/server/internal-data/operations";

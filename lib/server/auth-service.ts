@@ -16,6 +16,7 @@ import {
   DUPLICATE_ACCOUNT_ERROR,
   FAILED_AUTH_DELAY_MS,
   GENERIC_LOGIN_ERROR,
+  OPERATIONS_STATISTICS_STAFF_ROLE,
   SESSION_TTL_DAYS,
 } from "@/lib/server/auth-constants";
 import {
@@ -314,6 +315,19 @@ export async function loginAdministrativeStaff(input: LoginRequest, request: Req
   return result;
 }
 
+export async function loginInternalStaff(input: LoginRequest, request: Request) {
+  const result = await loginAccount(input, request);
+
+  if (
+    result.user.role !== ADMINISTRATIVE_STAFF_ROLE &&
+    result.user.role !== OPERATIONS_STATISTICS_STAFF_ROLE
+  ) {
+    throw new AuthError(GENERIC_LOGIN_ERROR, 401);
+  }
+
+  return result;
+}
+
 export async function loginAccount(input: LoginRequest, request: Request) {
   const user = await findUserByEmail(input.email);
 
@@ -428,6 +442,37 @@ export async function getCurrentAdministrativeStaff(cookieValue: string | undefi
   const user = await findUserById(payload.userId);
 
   if (!user || user.role !== ADMINISTRATIVE_STAFF_ROLE || user.status !== ACTIVE_STATUS) {
+    return null;
+  }
+
+  return toAuthUser(user);
+}
+
+export async function getCurrentInternalStaff(cookieValue: string | undefined) {
+  const payload = parseSessionCookie(cookieValue);
+
+  if (!payload || new Date(payload.expiresAt).getTime() <= Date.now()) {
+    return null;
+  }
+
+  const session = await findSession(payload.userId, payload.sessionId);
+
+  if (
+    !session ||
+    session.revoked_at ||
+    session.expires_at.getTime() <= Date.now() ||
+    !safeEqual(session.refresh_token_hash, hashSessionToken(payload.token))
+  ) {
+    return null;
+  }
+
+  const user = await findUserById(payload.userId);
+
+  if (
+    !user ||
+    (user.role !== ADMINISTRATIVE_STAFF_ROLE && user.role !== OPERATIONS_STATISTICS_STAFF_ROLE) ||
+    user.status !== ACTIVE_STATUS
+  ) {
     return null;
   }
 

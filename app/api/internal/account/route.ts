@@ -4,8 +4,8 @@ import { ZodError } from "zod";
 import { getAuthCookieValue } from "@/lib/server/auth";
 import { assertSameOriginRequest } from "@/lib/server/request-security";
 import {
-  getCurrentAdministrativeStaffProfile,
-  updateCurrentAdministrativeStaffProfile,
+  getCurrentInternalStaffProfile,
+  updateCurrentInternalStaffProfile,
 } from "@/lib/server/internal-account";
 import { internalErrorResponse, internalJson } from "@/lib/server/internal-api";
 import { internalAccountProfileRequestSchema } from "@/lib/shared/internal";
@@ -32,7 +32,7 @@ function getErrorMessage(error: unknown) {
 
 export async function GET(request: Request) {
   try {
-    const profile = await getCurrentAdministrativeStaffProfile(getAuthCookieValue(request));
+    const profile = await getCurrentInternalStaffProfile(getAuthCookieValue(request));
 
     return internalJson({ profile });
   } catch (error) {
@@ -46,7 +46,7 @@ export async function PATCH(request: Request) {
   try {
     assertSameOriginRequest(request);
     const input = internalAccountProfileRequestSchema.parse(await request.json());
-    const profile = await updateCurrentAdministrativeStaffProfile(getAuthCookieValue(request), input);
+    const profile = await updateCurrentInternalStaffProfile(getAuthCookieValue(request), input);
 
     return internalJson({ profile });
   } catch (error) {

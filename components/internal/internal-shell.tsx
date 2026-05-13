@@ -32,26 +32,27 @@ import type { AuthUser } from "@/lib/shared/auth";
 
 const navItems = [
   { href: "/internal", icon: FiHome, label: "Tổng quan" },
-  { href: "/internal/tours", icon: FiPackage, label: "Quản lý tour" },
-  { href: "/internal/suggested-tours", icon: FiClipboard, label: "Tour đề xuất" },
-  { href: "/internal/tour-approvals", icon: FiFileText, label: "Phê duyệt" },
-  { href: "/internal/destinations", icon: FiMapPin, label: "Quản lý địa điểm tour" },
-  { href: "/internal/vehicle-catalog", icon: FiGrid, label: "Danh mục phương tiện" },
-  { href: "/internal/services", icon: FiTool, label: "Quản lý dịch vụ đi kèm" },
-  { href: "/internal/providers", icon: FiTruck, label: "Nhà cung cấp" },
-  { href: "/internal/customers", icon: FiUsers, label: "Khách hàng" },
-  { href: "/internal/revenue", icon: FiBarChart2, label: "Doanh thu tour" },
-  { href: "/internal/schedules", icon: FiCalendar, label: "Lịch trình" },
-  { href: "/internal/promotions", icon: FiGift, label: "Khuyến mãi" },
-  { href: "/internal/notifications", icon: FiBell, label: "Thông báo" },
-  { href: "/internal/audit", icon: FiFileText, label: "Audit" },
+  { href: "/internal/operations", icon: FiBarChart2, label: "Vận hành & thống kê", permission: "operations:access" },
+  { href: "/internal/tours", icon: FiPackage, label: "Quản lý tour", permission: "tour:manage" },
+  { href: "/internal/suggested-tours", icon: FiClipboard, label: "Tour đề xuất", permission: "suggested_tour:manage" },
+  { href: "/internal/tour-approvals", icon: FiFileText, label: "Phê duyệt", permission: "tour_approval:manage" },
+  { href: "/internal/destinations", icon: FiMapPin, label: "Quản lý địa điểm tour", permission: "destination:manage" },
+  { href: "/internal/vehicle-catalog", icon: FiGrid, label: "Danh mục phương tiện", permission: "vehicle_catalog:manage" },
+  { href: "/internal/services", icon: FiTool, label: "Quản lý dịch vụ đi kèm", permission: "service:manage" },
+  { href: "/internal/providers", icon: FiTruck, label: "Nhà cung cấp", permission: "provider:manage" },
+  { href: "/internal/customers", icon: FiUsers, label: "Khách hàng", permission: "customer:manage" },
+  { href: "/internal/revenue", icon: FiBarChart2, label: "Doanh thu tour", permission: "revenue:read" },
+  { href: "/internal/schedules", icon: FiCalendar, label: "Lịch trình", permission: "schedule:manage" },
+  { href: "/internal/promotions", icon: FiGift, label: "Khuyến mãi", permission: "promotion:manage" },
+  { href: "/internal/notifications", icon: FiBell, label: "Thông báo", permission: "notification:read" },
+  { href: "/internal/audit", icon: FiFileText, label: "Audit", permission: "audit:read" },
 ];
 
 const COLLAPSED_STORAGE_KEY = "internal-shell-collapsed";
 
 type InternalShellProps = {
   children: ReactNode;
-  user: AuthUser;
+  user: AuthUser & { permissions?: string[] };
 };
 
 type UnsavedChangesContextValue = {
@@ -151,6 +152,17 @@ export function InternalShell({ children, user }: InternalShellProps) {
   }, [isDirty]);
 
   const initials = useMemo(() => getInitials(user.fullName), [user.fullName]);
+  const visibleNavItems = useMemo(() => {
+    if (user.role === "administrative_staff") {
+      return navItems;
+    }
+
+    const permissions = new Set(
+      user.permissions?.length ? user.permissions : ["operations:access"],
+    );
+
+    return navItems.filter((item) => item.href === "/internal" || (item.permission && permissions.has(item.permission)));
+  }, [user.permissions, user.role]);
   const handleLogout = async () => {
     await logoutInternalAccount();
     queryClient.setQueryData(internalSessionQueryKey, { user: null });
@@ -207,7 +219,7 @@ export function InternalShell({ children, user }: InternalShellProps) {
       </div>
 
       <nav className="flex flex-1 flex-col gap-2 overflow-y-auto overflow-x-hidden p-3" aria-label="Điều hướng nội bộ">
-        {navItems.map((item) => {
+        {visibleNavItems.map((item) => {
           const Icon = item.icon;
           const active = pathname === item.href || (item.href !== "/internal" && pathname.startsWith(item.href));
 
@@ -325,10 +337,10 @@ export function InternalShell({ children, user }: InternalShellProps) {
                 </button>
                 <div className="min-w-0">
                   <p className="text-xs font-semibold uppercase tracking-[0.24em] text-sky-600 dark:text-sky-300">
-                    AdministrativeStaff
+                    {user.role === "operations_statistics_staff" ? "OperationsStaff" : "AdministrativeStaff"}
                   </p>
                   <p className="truncate text-sm font-semibold text-slate-950 dark:text-neutral-50">
-                    Quản trị vận hành tour
+                    {user.role === "operations_statistics_staff" ? "Vận hành và thống kê tour" : "Quản trị vận hành tour"}
                   </p>
                 </div>
               </div>

@@ -138,7 +138,7 @@ export type LoginRequest = z.infer<typeof loginRequestSchema>;
 export type RegisterRequest = z.infer<typeof registerRequestSchema>;
 export type AccountProfileRequest = z.infer<typeof accountProfileRequestSchema>;
 
-export type UserRole = "administrative_staff" | "customer";
+export type UserRole = "administrative_staff" | "customer" | "operations_statistics_staff";
 
 export type AuthUser = {
   userId: string;

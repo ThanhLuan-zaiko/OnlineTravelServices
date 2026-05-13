@@ -4,6 +4,7 @@ export const AUTH_COOKIE_NAME = "online-travel-session";
 
 export const CUSTOMER_ROLE = "customer";
 export const ADMINISTRATIVE_STAFF_ROLE = "administrative_staff";
+export const OPERATIONS_STATISTICS_STAFF_ROLE = "operations_statistics_staff";
 export const ACTIVE_STATUS = "active";
 export const DEFAULT_CUSTOMER_TIER = "standard";
 export const DEFAULT_VIP_TIER = "none";

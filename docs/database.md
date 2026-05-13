@@ -28,6 +28,7 @@ SCYLLA_KEYSPACE=online_travel_services
 | Review | `reviews_by_tour`, `reviews_by_user`, `tour_rating_summary` |
 | Khuyến mãi | `promotions_by_id`, `promotions_by_status`, `promotions_by_customer_tier` |
 | Doanh thu | `revenue_stats_by_day`, `revenue_stats_by_month`, `tour_performance_by_month` |
+| Vận hành và thống kê | `tour_operation_events_by_tour`, `tour_update_notifications`, `customer_visit_stats_by_period`, `trend_analysis_snapshots`, `operation_reports_by_staff`, `operation_reports_by_period`, `customer_notifications_by_booking` |
 
 ## ⟡ Nguyên Tắc Khi Viết Data Access
 
@@ -76,6 +77,20 @@ Các mutation nội bộ hiện ghi vào bảng chính và bảng lookup:
   - `tour_itinerary_items`
 
 Do một số bảng lookup dùng clustering key dạng thời điểm, danh sách nội bộ đọc lookup để lấy candidate id, sau đó xác thực trạng thái hiện tại từ bảng chính. Cách này tránh hiển thị bản ghi projection cũ khi tour hoặc khuyến mãi đổi trạng thái.
+
+## ✧ Operations And Statistics Projection
+
+Role `operations_statistics_staff` dùng các bảng query-oriented riêng cho nghiệp vụ vận hành:
+
+- `tour_operation_events_by_tour`: ghi nhận trạng thái vận hành tour như chuẩn bị, diễn ra, hoàn thành, hủy lịch và số lượng khách thực tế.
+- `tour_update_notifications`: lưu thông báo cập nhật tour/lịch gửi cho khách theo partition `tour_id`.
+- `customer_notifications_by_booking`: projection tra cứu thông báo theo `booking_id` khi thông báo gắn với booking cụ thể.
+- `customer_visit_stats_by_period`: thống kê khách và địa điểm theo `period_type` gồm ngày, tuần, tháng, năm.
+- `trend_analysis_snapshots`: lưu ảnh chụp phân tích xu hướng khách, hiệu quả địa điểm, dự đoán nhu cầu và khuyến mãi.
+- `operation_reports_by_staff`: danh sách báo cáo do một staff tạo.
+- `operation_reports_by_period`: danh sách báo cáo theo kỳ báo cáo để trang reports đọc không cần scan rộng.
+
+Các mutation Operations ghi audit log qua `audit_log_by_actor` và `audit_log_by_entity`.
 
 ## ⟡ Public Tour Projection
 
